@@ -5,7 +5,8 @@ import { getUserAnalytics } from '../services/supabase';
 import type { ChartMogulMetrics, UserAnalytics } from '../types/bi';
 import styles from './Dashboard.module.css';
 
-const COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+// Solarized accent colors
+const COLORS = ['#268bd2', '#859900', '#b58900', '#dc322f', '#6c71c4', '#d33682'];
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -114,14 +115,14 @@ export default function Dashboard() {
             <h3>ARR Growth</h3>
             <ResponsiveContainer width="100%" height={250}>
               <LineChart data={metrics.arrGrowth}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                <XAxis dataKey="date" stroke="#71717a" fontSize={12} />
-                <YAxis stroke="#71717a" fontSize={12} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#073642" />
+                <XAxis dataKey="date" stroke="#586e75" fontSize={11} />
+                <YAxis stroke="#586e75" fontSize={11} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
                 <Tooltip
-                  contentStyle={{ background: '#1a1a1a', border: '1px solid #27272a' }}
+                  contentStyle={{ background: '#002b36', border: '1px solid #073642', color: '#839496' }}
                   formatter={(value) => [formatCurrency(Number(value)), 'ARR']}
                 />
-                <Line type="monotone" dataKey="arr" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="arr" stroke="#268bd2" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -133,13 +134,13 @@ export default function Dashboard() {
             <h3>Subscribers ({metrics.subscribers} total)</h3>
             <ResponsiveContainer width="100%" height={250}>
               <LineChart data={metrics.subscribersOverTime}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                <XAxis dataKey="date" stroke="#71717a" fontSize={12} />
-                <YAxis stroke="#71717a" fontSize={12} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#073642" />
+                <XAxis dataKey="date" stroke="#586e75" fontSize={11} />
+                <YAxis stroke="#586e75" fontSize={11} />
                 <Tooltip
-                  contentStyle={{ background: '#1a1a1a', border: '1px solid #27272a' }}
+                  contentStyle={{ background: '#002b36', border: '1px solid #073642', color: '#839496' }}
                 />
-                <Line type="monotone" dataKey="customers" stroke="#22c55e" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="customers" stroke="#859900" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -151,13 +152,13 @@ export default function Dashboard() {
             <h3>Signups Per Day</h3>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={userAnalytics.signupsPerDay}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                <XAxis dataKey="date" stroke="#71717a" fontSize={12} />
-                <YAxis stroke="#71717a" fontSize={12} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#073642" />
+                <XAxis dataKey="date" stroke="#586e75" fontSize={11} />
+                <YAxis stroke="#586e75" fontSize={11} />
                 <Tooltip
-                  contentStyle={{ background: '#1a1a1a', border: '1px solid #27272a' }}
+                  contentStyle={{ background: '#002b36', border: '1px solid #073642', color: '#839496' }}
                 />
-                <Bar dataKey="count" fill="#8b5cf6" />
+                <Bar dataKey="count" fill="#6c71c4" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -182,7 +183,7 @@ export default function Dashboard() {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ background: '#1a1a1a', border: '1px solid #27272a' }} />
+                <Tooltip contentStyle={{ background: '#002b36', border: '1px solid #073642', color: '#839496' }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -194,11 +195,11 @@ export default function Dashboard() {
             <h3>Model Usage</h3>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={userAnalytics.modelBreakdown} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                <XAxis type="number" stroke="#71717a" fontSize={12} />
-                <YAxis type="category" dataKey="model" stroke="#71717a" fontSize={12} width={100} />
-                <Tooltip contentStyle={{ background: '#1a1a1a', border: '1px solid #27272a' }} />
-                <Bar dataKey="count" fill="#f59e0b" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#073642" />
+                <XAxis type="number" stroke="#586e75" fontSize={11} />
+                <YAxis type="category" dataKey="model" stroke="#586e75" fontSize={11} width={100} />
+                <Tooltip contentStyle={{ background: '#002b36', border: '1px solid #073642', color: '#839496' }} />
+                <Bar dataKey="count" fill="#b58900" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -210,11 +211,11 @@ export default function Dashboard() {
             <h3>Videos Per Hour (Last 24h)</h3>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={userAnalytics.videosPerHour}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                <XAxis dataKey="hour" stroke="#71717a" fontSize={12} />
-                <YAxis stroke="#71717a" fontSize={12} />
-                <Tooltip contentStyle={{ background: '#1a1a1a', border: '1px solid #27272a' }} />
-                <Bar dataKey="count" fill="#ec4899" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#073642" />
+                <XAxis dataKey="hour" stroke="#586e75" fontSize={11} />
+                <YAxis stroke="#586e75" fontSize={11} />
+                <Tooltip contentStyle={{ background: '#002b36', border: '1px solid #073642', color: '#839496' }} />
+                <Bar dataKey="count" fill="#d33682" />
               </BarChart>
             </ResponsiveContainer>
           </div>

@@ -1,123 +1,176 @@
 .container {
   max-width: 1400px;
-  margin: 0 auto;
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .header h1 {
-  font-size: 24px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--foreground-emphasis);
 }
 
 .refreshButton {
-  background: var(--accent);
-  color: white;
+  background: var(--sol-base02);
+  color: var(--foreground-muted);
+  border: 1px solid var(--border-subtle);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 6px 12px;
 }
 
 .refreshButton:hover {
-  background: var(--accent-hover);
+  color: var(--sol-cyan);
+  border-color: var(--sol-cyan);
 }
 
 .loading {
   text-align: center;
   padding: 60px 20px;
-  color: var(--text-secondary);
+  color: var(--foreground-muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
 }
 
 .error {
   text-align: center;
-  padding: 60px 20px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--error);
-  border-radius: 8px;
+  padding: 40px 20px;
+  background: var(--background-alt);
+  border: 1px solid var(--sol-red);
+  border-radius: 4px;
   max-width: 400px;
   margin: 40px auto;
 }
 
 .error h2 {
-  color: var(--error);
+  color: var(--sol-red);
+  font-size: 14px;
+  font-weight: 600;
   margin-bottom: 8px;
 }
 
 .error p {
-  color: var(--text-secondary);
+  color: var(--foreground-muted);
+  font-size: 12px;
   margin-bottom: 16px;
 }
 
 .retryButton {
-  background: var(--error);
-  color: white;
+  background: rgba(220, 50, 47, 0.2);
+  color: var(--sol-red);
+  border: 1px solid var(--sol-red);
+  font-size: 10px;
+  text-transform: uppercase;
 }
 
 .metricsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-bottom: 32px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 1200px) {
+  .metricsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 20px;
+  background: var(--background-alt);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 16px;
 }
 
 .cardTitle {
-  font-size: 12px;
+  font-size: 9px;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+  color: var(--foreground-muted);
   margin-bottom: 8px;
 }
 
 .cardValue {
-  font-size: 28px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 24px;
   font-weight: 600;
+  color: var(--foreground-emphasis);
+  line-height: 1;
 }
 
 .cardSubtitle {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 4px;
+  font-size: 9px;
+  color: var(--sol-base01);
+  margin-top: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .chartsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 24px;
-  margin-bottom: 32px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 1000px) {
+  .chartsGrid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .chartCard {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 20px;
+  background: var(--background-alt);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  overflow: hidden;
 }
 
 .chartCard h3 {
-  font-size: 16px;
-  font-weight: 500;
-  margin-bottom: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 10px 16px;
+  background: var(--sol-base02);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--foreground-emphasis);
+  margin: 0;
+}
+
+.chartCard > div {
+  padding: 16px;
 }
 
 .tableSection {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 20px;
+  background: var(--background-alt);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  overflow: hidden;
 }
 
 .tableSection h3 {
-  font-size: 16px;
-  font-weight: 500;
-  margin-bottom: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 10px 16px;
+  background: var(--sol-base02);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--foreground-emphasis);
+  margin: 0;
 }
 
 .table {
@@ -127,24 +180,31 @@
 .tableHeader {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
-  gap: 16px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
-  font-size: 12px;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+  color: var(--foreground-muted);
 }
 
 .tableRow {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
-  gap: 16px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
-  font-size: 14px;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--foreground);
 }
 
 .tableRow:last-child {
   border-bottom: none;
+}
+
+.tableRow:hover {
+  background: var(--sol-base02);
 }

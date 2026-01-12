@@ -4,11 +4,11 @@
 }
 
 .sidebar {
-  width: 240px;
-  background: linear-gradient(180deg, #1e3a5f 0%, #0d1b2a 100%);
+  width: 200px;
+  background: var(--sol-base02);
+  border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
-  padding: 20px 0;
   position: fixed;
   top: 0;
   left: 0;
@@ -16,72 +16,87 @@
 }
 
 .brand {
-  font-size: 20px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
   font-weight: 600;
-  color: #fff;
-  padding: 0 20px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  margin-bottom: 20px;
+  color: var(--sol-cyan);
+  padding: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 0.5px;
+}
+
+.brand::before {
+  content: '>';
+  color: var(--sol-green);
 }
 
 .nav {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 0 12px;
+  padding: 8px;
 }
 
 .navItem {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.7);
+  gap: 10px;
+  padding: 10px 12px;
+  color: var(--foreground-muted);
   text-decoration: none;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
   transition: all 0.15s ease;
+  border-left: 2px solid transparent;
 }
 
 .navItem:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.1);
+  color: var(--foreground);
+  background: var(--background-alt);
   text-decoration: none;
 }
 
 .navItem.active {
-  color: #fff;
-  background: #3b82f6;
+  color: var(--sol-cyan);
+  background: var(--background-alt);
+  border-left-color: var(--sol-cyan);
 }
 
 .icon {
-  font-size: 18px;
-  width: 24px;
+  font-size: 14px;
+  width: 20px;
   text-align: center;
+  opacity: 0.8;
+}
+
+.navItem.active .icon {
+  opacity: 1;
 }
 
 .logout {
-  margin: 20px 12px 0;
-  padding: 12px 16px;
+  margin: 8px;
+  padding: 10px 12px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  font-size: 14px;
-  text-align: left;
+  color: var(--foreground-muted);
+  border: 1px solid var(--border-subtle);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .logout:hover {
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.4);
+  color: var(--sol-red);
+  border-color: var(--sol-red);
+  background: rgba(220, 50, 47, 0.1);
 }
 
 .main {
   flex: 1;
-  margin-left: 240px;
-  padding: 24px;
-  background: var(--bg-primary);
+  margin-left: 200px;
+  padding: 20px;
+  background: var(--background);
   min-height: 100vh;
 }

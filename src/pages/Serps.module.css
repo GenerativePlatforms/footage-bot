@@ -1,53 +1,65 @@
 .container {
   max-width: 1200px;
-  margin: 0 auto;
 }
 
 .header {
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .header h1 {
-  font-size: 24px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--foreground-emphasis);
 }
 
 .badge {
-  background: var(--accent);
-  color: white;
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
+  background: rgba(108, 113, 196, 0.2);
+  color: var(--sol-violet);
+  padding: 3px 10px;
+  border-radius: 2px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .placeholder {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 80px 40px;
+  background: var(--background-alt);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 60px 40px;
   text-align: center;
 }
 
 .icon {
-  font-size: 64px;
-  margin-bottom: 24px;
+  font-size: 48px;
+  margin-bottom: 20px;
+  opacity: 0.6;
 }
 
 .placeholder h2 {
-  font-size: 24px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--foreground-emphasis);
   margin-bottom: 12px;
 }
 
 .placeholder p {
-  color: var(--text-secondary);
-  margin-bottom: 8px;
+  color: var(--foreground-muted);
+  font-size: 13px;
+  margin-bottom: 6px;
 }
 
 .muted {
-  color: var(--text-muted);
-  font-size: 14px;
+  color: var(--sol-base01);
+  font-size: 11px;
 }

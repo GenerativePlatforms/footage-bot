@@ -16,10 +16,10 @@ function formatTime(timestamp: number): string {
 
 function getSentimentColor(sentiment: string | undefined): string {
   switch (sentiment) {
-    case 'positive': return 'var(--success)'
-    case 'negative': return 'var(--error)'
-    case 'frustrated': return 'var(--warning)'
-    default: return 'var(--text-secondary)'
+    case 'positive': return 'var(--sol-green)'
+    case 'negative': return 'var(--sol-red)'
+    case 'frustrated': return 'var(--sol-orange)'
+    default: return 'var(--foreground-muted)'
   }
 }
 

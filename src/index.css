@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -5,30 +7,76 @@
 }
 
 :root {
-  --bg-primary: #0a0a0a;
-  --bg-secondary: #141414;
-  --bg-tertiary: #1a1a1a;
-  --text-primary: #fafafa;
-  --text-secondary: #a1a1aa;
-  --text-muted: #71717a;
-  --border: #27272a;
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --error: #ef4444;
+  /* Solarized Dark Palette */
+  --sol-base03: #002b36;
+  --sol-base02: #073642;
+  --sol-base01: #586e75;
+  --sol-base00: #657b83;
+  --sol-base0: #839496;
+  --sol-base1: #93a1a1;
+  --sol-base2: #eee8d5;
+  --sol-base3: #fdf6e3;
+  --sol-yellow: #b58900;
+  --sol-orange: #cb4b16;
+  --sol-red: #dc322f;
+  --sol-magenta: #d33682;
+  --sol-violet: #6c71c4;
+  --sol-blue: #268bd2;
+  --sol-cyan: #2aa198;
+  --sol-green: #859900;
+
+  /* Dark theme (mission control) */
+  --background: var(--sol-base03);
+  --background-alt: var(--sol-base02);
+  --foreground: var(--sol-base0);
+  --foreground-muted: var(--sol-base01);
+  --foreground-emphasis: var(--sol-base1);
+  --border: var(--sol-base01);
+  --border-subtle: #0a3d4a;
+  --accent: var(--sol-blue);
+  --accent-green: var(--sol-green);
+  --accent-orange: var(--sol-orange);
+  --accent-red: var(--sol-red);
+  --accent-cyan: var(--sol-cyan);
+  --accent-violet: var(--sol-violet);
+  --accent-yellow: var(--sol-yellow);
+  --accent-magenta: var(--sol-magenta);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sol-base01) var(--sol-base02);
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--sol-base02);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--sol-base01);
+  border-radius: 3px;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  line-height: 1.5;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
   min-height: 100vh;
 }
 
 #root {
   min-height: 100vh;
+}
+
+.font-mono {
+  font-family: 'IBM Plex Mono', monospace;
 }
 
 a {
@@ -40,14 +88,148 @@ a:hover {
   text-decoration: underline;
 }
 
+/* Panel styling */
+.panel {
+  background: var(--background);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.panel-header {
+  background: var(--background-alt);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--foreground-emphasis);
+}
+
+/* Status indicators */
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-active {
+  background: var(--accent-green);
+  box-shadow: 0 0 4px var(--accent-green);
+}
+
+.status-warning {
+  background: var(--accent-orange);
+  box-shadow: 0 0 4px var(--accent-orange);
+}
+
+.status-error {
+  background: var(--accent-red);
+  box-shadow: 0 0 4px var(--accent-red);
+}
+
+/* List items */
+.list-item {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.list-item:hover {
+  background: var(--background-alt);
+}
+
+.list-item.active {
+  background: var(--background-alt);
+  border-left: 2px solid var(--accent);
+  padding-left: 8px;
+}
+
+/* Tags */
+.tag {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border-radius: 2px;
+}
+
+.tag-blue {
+  background: rgba(38, 139, 210, 0.2);
+  color: var(--accent);
+}
+
+.tag-green {
+  background: rgba(133, 153, 0, 0.2);
+  color: var(--accent-green);
+}
+
+.tag-orange {
+  background: rgba(203, 75, 22, 0.2);
+  color: var(--accent-orange);
+}
+
+.tag-red {
+  background: rgba(220, 50, 47, 0.2);
+  color: var(--accent-red);
+}
+
+.tag-cyan {
+  background: rgba(42, 161, 152, 0.2);
+  color: var(--accent-cyan);
+}
+
+.tag-violet {
+  background: rgba(108, 113, 196, 0.2);
+  color: var(--accent-violet);
+}
+
+/* Metrics */
+.metric-value {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--foreground-emphasis);
+  line-height: 1;
+}
+
+.metric-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--foreground-muted);
+  margin-top: 4px;
+}
+
+/* Progress bar */
+.progress-bar {
+  height: 4px;
+  background: var(--background-alt);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+/* Buttons */
 button {
   cursor: pointer;
   border: none;
-  border-radius: 6px;
-  font-size: 14px;
+  border-radius: 3px;
+  font-size: 11px;
   font-weight: 500;
-  padding: 8px 16px;
+  padding: 6px 12px;
   transition: all 0.15s ease;
+  font-family: inherit;
 }
 
 button:disabled {
@@ -55,16 +237,57 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.btn-primary {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--foreground-muted);
+  border: 1px solid var(--border-subtle);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  color: var(--foreground);
+  border-color: var(--border);
+}
+
+/* Inputs */
 input {
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text-primary);
-  font-size: 14px;
+  background: var(--background-alt);
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  color: var(--foreground);
+  font-size: 13px;
   padding: 8px 12px;
+  font-family: 'IBM Plex Mono', monospace;
 }
 
 input:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+/* Blink animation */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0.4; }
+}
+
+.blink {
+  animation: blink 1.5s infinite;
+}
+
+/* Grid pattern background */
+.grid-pattern {
+  background-image:
+    linear-gradient(var(--border-subtle) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border-subtle) 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-position: -1px -1px;
 }
