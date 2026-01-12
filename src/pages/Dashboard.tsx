@@ -1,93 +1,250 @@
-import { useQuery } from 'convex/react'
-import { api } from '../../convex/_generated/api'
-import styles from './Dashboard.module.css'
+import { useState, useEffect } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { getDashboardMetrics } from '../services/chartmogul';
+import { getUserAnalytics } from '../services/supabase';
+import type { ChartMogulMetrics, UserAnalytics } from '../types/bi';
+import styles from './Dashboard.module.css';
 
-function formatDuration(ms: number | undefined): string {
-  if (!ms) return '-'
-  const seconds = Math.floor(ms / 1000)
-  const minutes = Math.floor(seconds / 60)
-  const remainingSeconds = seconds % 60
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+const COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
 }
 
-function formatTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleString()
-}
-
-function getSentimentColor(sentiment: string | undefined): string {
-  switch (sentiment) {
-    case 'positive': return 'var(--success)'
-    case 'negative': return 'var(--error)'
-    case 'frustrated': return 'var(--warning)'
-    default: return 'var(--text-secondary)'
-  }
+function MetricCard({ title, value, subtitle }: { title: string; value: string; subtitle?: string }) {
+  return (
+    <div className={styles.card}>
+      <div className={styles.cardTitle}>{title}</div>
+      <div className={styles.cardValue}>{value}</div>
+      {subtitle && <div className={styles.cardSubtitle}>{subtitle}</div>}
+    </div>
+  );
 }
 
 export default function Dashboard() {
-  const recordings = useQuery(api.recordings.list, { limit: 50 })
+  const [metrics, setMetrics] = useState<ChartMogulMetrics | null>(null);
+  const [userAnalytics, setUserAnalytics] = useState<UserAnalytics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (recordings === undefined) {
-    return <div className={styles.loading}>Loading recordings...</div>
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const [metricsData, analyticsData] = await Promise.all([
+        getDashboardMetrics().catch(err => {
+          console.error('ChartMogul error:', err);
+          return null;
+        }),
+        getUserAnalytics().catch(err => {
+          console.error('Supabase error:', err);
+          return null;
+        }),
+      ]);
+
+      setMetrics(metricsData);
+      setUserAnalytics(analyticsData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return <div className={styles.loading}>Loading metrics...</div>;
   }
 
-  if (recordings.length === 0) {
+  if (error) {
     return (
-      <div className={styles.empty}>
-        <h2>No recordings yet</h2>
-        <p>Install the recorder script on your website to start capturing sessions.</p>
+      <div className={styles.error}>
+        <h2>Error Loading Data</h2>
+        <p>{error}</p>
+        <button onClick={fetchData} className={styles.retryButton}>Try Again</button>
       </div>
-    )
+    );
   }
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1>Session Recordings</h1>
-        <span className={styles.count}>{recordings.length} recordings</span>
+        <h1>Business Metrics</h1>
+        <button onClick={fetchData} className={styles.refreshButton}>Refresh</button>
       </div>
 
-      <div className={styles.table}>
-        <div className={styles.tableHeader}>
-          <div className={styles.col}>Time</div>
-          <div className={styles.col}>Page</div>
-          <div className={styles.col}>Duration</div>
-          <div className={styles.col}>Events</div>
-          <div className={styles.col}>Analysis</div>
-        </div>
+      {/* Top Metrics */}
+      <div className={styles.metricsGrid}>
+        <MetricCard
+          title="Monthly Recurring Revenue"
+          value={formatCurrency(metrics?.mrr || 0)}
+          subtitle="ChartMogul"
+        />
+        <MetricCard
+          title="Annual Recurring Revenue"
+          value={formatCurrency(metrics?.arr || 0)}
+          subtitle="ChartMogul"
+        />
+        <MetricCard
+          title="New Paid Customers (24h)"
+          value={String(metrics?.newCustomers24h || 0)}
+          subtitle="ChartMogul"
+        />
+        <MetricCard
+          title="New Free Signups (24h)"
+          value={String(userAnalytics?.newAccounts24h || 0)}
+          subtitle="Supabase"
+        />
+      </div>
 
-        {recordings.map((recording) => (
-          <div key={recording._id} className={styles.row}>
-            <div className={styles.col}>
-              <span className={styles.time}>{formatTime(recording.startTime)}</span>
-            </div>
-            <div className={styles.col}>
-              <span className={styles.url} title={recording.pageUrl}>
-                {new URL(recording.pageUrl).pathname}
-              </span>
-            </div>
-            <div className={styles.col}>
-              {formatDuration(recording.duration)}
-            </div>
-            <div className={styles.col}>
-              {recording.events?.length || 0}
-            </div>
-            <div className={styles.col}>
-              {recording.analysis ? (
-                <span
-                  className={styles.sentiment}
-                  style={{ color: getSentimentColor(recording.analysis.sentiment) }}
-                >
-                  {recording.analysis.sentiment}
-                </span>
-              ) : recording.analyzed ? (
-                <span className={styles.pending}>pending</span>
-              ) : (
-                <span className={styles.notAnalyzed}>-</span>
-              )}
-            </div>
+      {/* Charts */}
+      <div className={styles.chartsGrid}>
+        {/* ARR Growth */}
+        {metrics?.arrGrowth && metrics.arrGrowth.length > 0 && (
+          <div className={styles.chartCard}>
+            <h3>ARR Growth</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={metrics.arrGrowth}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                <XAxis dataKey="date" stroke="#71717a" fontSize={12} />
+                <YAxis stroke="#71717a" fontSize={12} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                <Tooltip
+                  contentStyle={{ background: '#1a1a1a', border: '1px solid #27272a' }}
+                  formatter={(value) => [formatCurrency(Number(value)), 'ARR']}
+                />
+                <Line type="monotone" dataKey="arr" stroke="#3b82f6" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
-        ))}
+        )}
+
+        {/* Subscribers Over Time */}
+        {metrics?.subscribersOverTime && metrics.subscribersOverTime.length > 0 && (
+          <div className={styles.chartCard}>
+            <h3>Subscribers ({metrics.subscribers} total)</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={metrics.subscribersOverTime}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                <XAxis dataKey="date" stroke="#71717a" fontSize={12} />
+                <YAxis stroke="#71717a" fontSize={12} />
+                <Tooltip
+                  contentStyle={{ background: '#1a1a1a', border: '1px solid #27272a' }}
+                />
+                <Line type="monotone" dataKey="customers" stroke="#22c55e" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Signups Per Day */}
+        {userAnalytics?.signupsPerDay && userAnalytics.signupsPerDay.length > 0 && (
+          <div className={styles.chartCard}>
+            <h3>Signups Per Day</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={userAnalytics.signupsPerDay}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                <XAxis dataKey="date" stroke="#71717a" fontSize={12} />
+                <YAxis stroke="#71717a" fontSize={12} />
+                <Tooltip
+                  contentStyle={{ background: '#1a1a1a', border: '1px solid #27272a' }}
+                />
+                <Bar dataKey="count" fill="#8b5cf6" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Referral Breakdown */}
+        {userAnalytics?.referralBreakdown && userAnalytics.referralBreakdown.length > 0 && (
+          <div className={styles.chartCard}>
+            <h3>Referral Sources</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={userAnalytics.referralBreakdown.map(r => ({ ...r, name: r.name, count: r.count }))}
+                  dataKey="count"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  label={({ name, percent }) => `${name} (${((percent ?? 0) * 100).toFixed(0)}%)`}
+                >
+                  {userAnalytics.referralBreakdown.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{ background: '#1a1a1a', border: '1px solid #27272a' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Model Breakdown */}
+        {userAnalytics?.modelBreakdown && userAnalytics.modelBreakdown.length > 0 && (
+          <div className={styles.chartCard}>
+            <h3>Model Usage</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={userAnalytics.modelBreakdown} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                <XAxis type="number" stroke="#71717a" fontSize={12} />
+                <YAxis type="category" dataKey="model" stroke="#71717a" fontSize={12} width={100} />
+                <Tooltip contentStyle={{ background: '#1a1a1a', border: '1px solid #27272a' }} />
+                <Bar dataKey="count" fill="#f59e0b" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Videos Per Hour */}
+        {userAnalytics?.videosPerHour && userAnalytics.videosPerHour.length > 0 && (
+          <div className={styles.chartCard}>
+            <h3>Videos Per Hour (Last 24h)</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={userAnalytics.videosPerHour}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                <XAxis dataKey="hour" stroke="#71717a" fontSize={12} />
+                <YAxis stroke="#71717a" fontSize={12} />
+                <Tooltip contentStyle={{ background: '#1a1a1a', border: '1px solid #27272a' }} />
+                <Bar dataKey="count" fill="#ec4899" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
+
+      {/* New Subscribers Table */}
+      {metrics?.newSubscriberDetails && metrics.newSubscriberDetails.length > 0 && (
+        <div className={styles.tableSection}>
+          <h3>Recent New Subscribers</h3>
+          <div className={styles.table}>
+            <div className={styles.tableHeader}>
+              <div>Email</div>
+              <div>Plan</div>
+              <div>MRR</div>
+              <div>Source</div>
+              <div>Date</div>
+            </div>
+            {metrics.newSubscriberDetails.map((sub, i) => (
+              <div key={sub.uuid || i} className={styles.tableRow}>
+                <div>{sub.email}</div>
+                <div>{sub['plan-external-id'] || '-'}</div>
+                <div>{sub['activity-mrr'] ? formatCurrency(sub['activity-mrr'] / 100) : '-'}</div>
+                <div>{sub.source}</div>
+                <div>{new Date(sub.date).toLocaleDateString()}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
-  )
+  );
 }

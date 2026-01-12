@@ -2,36 +2,38 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../App'
 import styles from './Layout.module.css'
 
+const navItems = [
+  { path: '/', label: 'Dashboard', icon: '📊' },
+  { path: '/sessions', label: 'User Sessions', icon: '👤' },
+  { path: '/serps', label: 'SERPs', icon: '🔍' },
+]
+
 export default function Layout() {
   const { logout } = useAuth()
 
   return (
     <div className={styles.layout}>
-      <nav className={styles.nav}>
+      <aside className={styles.sidebar}>
         <div className={styles.brand}>Footage Bot</div>
-        <div className={styles.links}>
-          <NavLink
-            to="/"
-            end
-            className={({ isActive }) =>
-              isActive ? `${styles.link} ${styles.active}` : styles.link
-            }
-          >
-            Recordings
-          </NavLink>
-          <NavLink
-            to="/metrics"
-            className={({ isActive }) =>
-              isActive ? `${styles.link} ${styles.active}` : styles.link
-            }
-          >
-            Metrics
-          </NavLink>
-        </div>
+        <nav className={styles.nav}>
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              end={item.path === '/'}
+              className={({ isActive }) =>
+                isActive ? `${styles.navItem} ${styles.active}` : styles.navItem
+              }
+            >
+              <span className={styles.icon}>{item.icon}</span>
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
         <button onClick={logout} className={styles.logout}>
           Logout
         </button>
-      </nav>
+      </aside>
       <main className={styles.main}>
         <Outlet />
       </main>

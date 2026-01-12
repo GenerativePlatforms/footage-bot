@@ -1,7 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useState, createContext, useContext } from 'react'
 import Dashboard from './pages/Dashboard'
-import Metrics from './pages/Metrics'
+import Sessions from './pages/Sessions'
+import Serps from './pages/Serps'
 import Login from './pages/Login'
 import Layout from './components/Layout'
 
@@ -25,8 +26,6 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
   })
 
   const login = (password: string): boolean => {
-    // Password is checked client-side for simplicity
-    // In production, you'd verify via a Convex function
     if (password === import.meta.env.VITE_AUTH_PASSWORD || password === 'RR2NWrwvUj0srm6rXyKL') {
       localStorage.setItem('footage-auth', 'authenticated')
       setIsAuthenticated(true)
@@ -67,7 +66,8 @@ export default function App() {
           }
         >
           <Route index element={<Dashboard />} />
-          <Route path="metrics" element={<Metrics />} />
+          <Route path="sessions" element={<Sessions />} />
+          <Route path="serps" element={<Serps />} />
         </Route>
       </Routes>
     </AuthProvider>
