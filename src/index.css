@@ -25,7 +25,7 @@
   --sol-cyan: #2aa198;
   --sol-green: #859900;
 
-  /* Dark theme (mission control) */
+  /* Dark theme (sidebar) */
   --background: var(--sol-base03);
   --background-alt: var(--sol-base02);
   --foreground: var(--sol-base0);
@@ -41,6 +41,15 @@
   --accent-violet: var(--sol-violet);
   --accent-yellow: var(--sol-yellow);
   --accent-magenta: var(--sol-magenta);
+
+  /* Light theme (main content area) */
+  --main-background: var(--sol-base3);
+  --main-background-alt: var(--sol-base2);
+  --main-foreground: var(--sol-base00);
+  --main-foreground-muted: var(--sol-base1);
+  --main-foreground-emphasis: var(--sol-base01);
+  --main-border: var(--sol-base1);
+  --main-border-subtle: #e0dcc7;
 }
 
 * {

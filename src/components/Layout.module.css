@@ -13,6 +13,12 @@
   top: 0;
   left: 0;
   bottom: 0;
+  transition: width 0.2s ease;
+  z-index: 100;
+}
+
+.sidebar.collapsed {
+  width: 56px;
 }
 
 .brand {
@@ -26,11 +32,15 @@
   align-items: center;
   gap: 8px;
   letter-spacing: 0.5px;
+  min-height: 52px;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .brand::before {
   content: '>';
   color: var(--sol-green);
+  flex-shrink: 0;
 }
 
 .nav {
@@ -51,6 +61,8 @@
   font-weight: 500;
   transition: all 0.15s ease;
   border-left: 2px solid transparent;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .navItem:hover {
@@ -66,14 +78,20 @@
 }
 
 .icon {
-  font-size: 14px;
+  font-size: 16px;
   width: 20px;
   text-align: center;
   opacity: 0.8;
+  flex-shrink: 0;
 }
 
 .navItem.active .icon {
   opacity: 1;
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .logout {
@@ -85,6 +103,8 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .logout:hover {
@@ -93,10 +113,46 @@
   background: rgba(220, 50, 47, 0.1);
 }
 
+.collapseBtn {
+  position: fixed;
+  left: 200px;
+  top: 50%;
+  transform: translateY(-50%) translateX(-50%);
+  width: 20px;
+  height: 40px;
+  background: var(--sol-base02);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0 4px 4px 0;
+  color: var(--foreground-muted);
+  font-size: 14px;
+  cursor: pointer;
+  z-index: 101;
+  transition: left 0.2s ease, background 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.collapseBtn:hover {
+  background: var(--sol-base01);
+  color: var(--foreground);
+}
+
+.collapsedBtn {
+  left: 56px;
+}
+
 .main {
   flex: 1;
   margin-left: 200px;
-  padding: 20px;
-  background: var(--background);
+  padding: 24px;
+  background: var(--main-background);
   min-height: 100vh;
+  transition: margin-left 0.2s ease;
+  color: var(--main-foreground);
+}
+
+.mainExpanded {
+  margin-left: 56px;
 }

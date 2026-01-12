@@ -8,7 +8,7 @@
   gap: 16px;
   margin-bottom: 20px;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--main-border-subtle);
 }
 
 .header h1 {
@@ -17,7 +17,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--foreground-emphasis);
+  color: var(--main-foreground-emphasis);
 }
 
 .count {
@@ -33,22 +33,23 @@
 .empty {
   text-align: center;
   padding: 60px 20px;
-  color: var(--foreground-muted);
+  color: var(--main-foreground-muted);
   font-family: 'IBM Plex Mono', monospace;
   font-size: 12px;
 }
 
 .empty h2 {
-  color: var(--foreground-emphasis);
+  color: var(--main-foreground-emphasis);
   font-size: 14px;
   margin-bottom: 8px;
 }
 
 .table {
-  background: var(--background-alt);
-  border: 1px solid var(--border-subtle);
+  background: white;
+  border: 1px solid var(--main-border-subtle);
   border-radius: 4px;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .tableHeader {
@@ -56,13 +57,13 @@
   grid-template-columns: 160px 1fr 90px 70px 100px;
   gap: 12px;
   padding: 10px 16px;
-  background: var(--sol-base02);
+  background: var(--main-background-alt);
   font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--foreground-muted);
-  border-bottom: 1px solid var(--border-subtle);
+  color: var(--main-foreground-muted);
+  border-bottom: 1px solid var(--main-border-subtle);
 }
 
 .row {
@@ -70,7 +71,7 @@
   grid-template-columns: 160px 1fr 90px 70px 100px;
   gap: 12px;
   padding: 10px 16px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--main-border-subtle);
   font-size: 12px;
   transition: background 0.1s ease;
   cursor: pointer;
@@ -81,7 +82,7 @@
 }
 
 .row:hover {
-  background: var(--sol-base02);
+  background: var(--main-background-alt);
 }
 
 .col {
@@ -94,14 +95,14 @@
   font-family: 'IBM Plex Mono', monospace;
   font-variant-numeric: tabular-nums;
   font-size: 11px;
-  color: var(--foreground);
+  color: var(--main-foreground);
 }
 
 .url {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--foreground-muted);
+  color: var(--main-foreground-muted);
   font-size: 11px;
 }
 
@@ -122,5 +123,5 @@
 }
 
 .notAnalyzed {
-  color: var(--sol-base01);
+  color: var(--main-foreground-muted);
 }

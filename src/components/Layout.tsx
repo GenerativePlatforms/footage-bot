@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../App'
 import styles from './Layout.module.css'
@@ -10,11 +11,14 @@ const navItems = [
 
 export default function Layout() {
   const { logout } = useAuth()
+  const [collapsed, setCollapsed] = useState(false)
 
   return (
     <div className={styles.layout}>
-      <aside className={styles.sidebar}>
-        <div className={styles.brand}>Footage Bot</div>
+      <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
+        <div className={styles.brand}>
+          {!collapsed && <span>footage.bot</span>}
+        </div>
         <nav className={styles.nav}>
           {navItems.map((item) => (
             <NavLink
@@ -24,17 +28,25 @@ export default function Layout() {
               className={({ isActive }) =>
                 isActive ? `${styles.navItem} ${styles.active}` : styles.navItem
               }
+              title={collapsed ? item.label : undefined}
             >
               <span className={styles.icon}>{item.icon}</span>
-              {item.label}
+              {!collapsed && <span className={styles.label}>{item.label}</span>}
             </NavLink>
           ))}
         </nav>
-        <button onClick={logout} className={styles.logout}>
-          Logout
+        <button onClick={logout} className={styles.logout} title={collapsed ? 'Logout' : undefined}>
+          {collapsed ? '⏻' : 'Logout'}
         </button>
       </aside>
-      <main className={styles.main}>
+      <button
+        className={`${styles.collapseBtn} ${collapsed ? styles.collapsedBtn : ''}`}
+        onClick={() => setCollapsed(!collapsed)}
+        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        {collapsed ? '›' : '‹'}
+      </button>
+      <main className={`${styles.main} ${collapsed ? styles.mainExpanded : ''}`}>
         <Outlet />
       </main>
     </div>

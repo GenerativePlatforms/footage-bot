@@ -22,21 +22,13 @@
   font-size: 20px;
   font-weight: 600;
   color: var(--sol-cyan);
-  margin-bottom: 8px;
+  margin-bottom: 24px;
   letter-spacing: 1px;
 }
 
 .title::before {
   content: '> ';
   color: var(--sol-green);
-}
-
-.subtitle {
-  color: var(--foreground-muted);
-  font-size: 12px;
-  margin-bottom: 32px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .form {

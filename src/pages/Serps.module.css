@@ -8,7 +8,7 @@
   gap: 16px;
   margin-bottom: 20px;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--main-border-subtle);
 }
 
 .header h1 {
@@ -17,11 +17,11 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--foreground-emphasis);
+  color: var(--main-foreground-emphasis);
 }
 
 .badge {
-  background: rgba(108, 113, 196, 0.2);
+  background: rgba(108, 113, 196, 0.15);
   color: var(--sol-violet);
   padding: 3px 10px;
   border-radius: 2px;
@@ -32,11 +32,12 @@
 }
 
 .placeholder {
-  background: var(--background-alt);
-  border: 1px solid var(--border-subtle);
+  background: white;
+  border: 1px solid var(--main-border-subtle);
   border-radius: 4px;
   padding: 60px 40px;
   text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .icon {
@@ -49,17 +50,17 @@
   font-family: 'IBM Plex Mono', monospace;
   font-size: 16px;
   font-weight: 600;
-  color: var(--foreground-emphasis);
+  color: var(--main-foreground-emphasis);
   margin-bottom: 12px;
 }
 
 .placeholder p {
-  color: var(--foreground-muted);
+  color: var(--main-foreground-muted);
   font-size: 13px;
   margin-bottom: 6px;
 }
 
 .muted {
-  color: var(--sol-base01);
+  color: var(--main-foreground-muted);
   font-size: 11px;
 }

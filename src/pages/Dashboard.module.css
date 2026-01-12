@@ -8,7 +8,7 @@
   justify-content: space-between;
   margin-bottom: 20px;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--main-border-subtle);
 }
 
 .header h1 {
@@ -17,13 +17,13 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--foreground-emphasis);
+  color: var(--main-foreground-emphasis);
 }
 
 .refreshButton {
-  background: var(--sol-base02);
-  color: var(--foreground-muted);
-  border: 1px solid var(--border-subtle);
+  background: var(--main-background-alt);
+  color: var(--main-foreground-muted);
+  border: 1px solid var(--main-border-subtle);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -38,7 +38,7 @@
 .loading {
   text-align: center;
   padding: 60px 20px;
-  color: var(--foreground-muted);
+  color: var(--main-foreground-muted);
   font-family: 'IBM Plex Mono', monospace;
   font-size: 12px;
 }
@@ -46,7 +46,7 @@
 .error {
   text-align: center;
   padding: 40px 20px;
-  background: var(--background-alt);
+  background: var(--main-background-alt);
   border: 1px solid var(--sol-red);
   border-radius: 4px;
   max-width: 400px;
@@ -61,13 +61,13 @@
 }
 
 .error p {
-  color: var(--foreground-muted);
+  color: var(--main-foreground-muted);
   font-size: 12px;
   margin-bottom: 16px;
 }
 
 .retryButton {
-  background: rgba(220, 50, 47, 0.2);
+  background: rgba(220, 50, 47, 0.1);
   color: var(--sol-red);
   border: 1px solid var(--sol-red);
   font-size: 10px;
@@ -88,17 +88,18 @@
 }
 
 .card {
-  background: var(--background-alt);
-  border: 1px solid var(--border-subtle);
+  background: white;
+  border: 1px solid var(--main-border-subtle);
   border-radius: 4px;
   padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .cardTitle {
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--foreground-muted);
+  color: var(--main-foreground-muted);
   margin-bottom: 8px;
 }
 
@@ -106,13 +107,13 @@
   font-family: 'IBM Plex Mono', monospace;
   font-size: 24px;
   font-weight: 600;
-  color: var(--foreground-emphasis);
+  color: var(--main-foreground-emphasis);
   line-height: 1;
 }
 
 .cardSubtitle {
   font-size: 9px;
-  color: var(--sol-base01);
+  color: var(--main-foreground-muted);
   margin-top: 6px;
   text-transform: uppercase;
   letter-spacing: 0.3px;
@@ -132,10 +133,11 @@
 }
 
 .chartCard {
-  background: var(--background-alt);
-  border: 1px solid var(--border-subtle);
+  background: white;
+  border: 1px solid var(--main-border-subtle);
   border-radius: 4px;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .chartCard h3 {
@@ -144,9 +146,9 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding: 10px 16px;
-  background: var(--sol-base02);
-  border-bottom: 1px solid var(--border-subtle);
-  color: var(--foreground-emphasis);
+  background: var(--main-background-alt);
+  border-bottom: 1px solid var(--main-border-subtle);
+  color: var(--main-foreground-emphasis);
   margin: 0;
 }
 
@@ -155,10 +157,11 @@
 }
 
 .tableSection {
-  background: var(--background-alt);
-  border: 1px solid var(--border-subtle);
+  background: white;
+  border: 1px solid var(--main-border-subtle);
   border-radius: 4px;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .tableSection h3 {
@@ -167,9 +170,9 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding: 10px 16px;
-  background: var(--sol-base02);
-  border-bottom: 1px solid var(--border-subtle);
-  color: var(--foreground-emphasis);
+  background: var(--main-background-alt);
+  border-bottom: 1px solid var(--main-border-subtle);
+  color: var(--main-foreground-emphasis);
   margin: 0;
 }
 
@@ -182,12 +185,12 @@
   grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
   gap: 12px;
   padding: 10px 16px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--main-border-subtle);
   font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--foreground-muted);
+  color: var(--main-foreground-muted);
 }
 
 .tableRow {
@@ -195,10 +198,10 @@
   grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
   gap: 12px;
   padding: 10px 16px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--main-border-subtle);
   font-size: 12px;
   font-family: 'IBM Plex Mono', monospace;
-  color: var(--foreground);
+  color: var(--main-foreground);
 }
 
 .tableRow:last-child {
@@ -206,5 +209,5 @@
 }
 
 .tableRow:hover {
-  background: var(--sol-base02);
+  background: var(--main-background-alt);
 }

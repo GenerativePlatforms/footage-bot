@@ -26,8 +26,7 @@ export default function Login() {
   return (
     <div className={styles.container}>
       <div className={styles.card}>
-        <h1 className={styles.title}>Footage Bot</h1>
-        <p className={styles.subtitle}>Session Analytics Dashboard</p>
+        <h1 className={styles.title}>footage.bot</h1>
         <form onSubmit={handleSubmit} className={styles.form}>
           <input
             type="password"
