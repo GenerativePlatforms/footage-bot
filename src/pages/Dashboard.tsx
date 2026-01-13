@@ -1,24 +1,35 @@
 import { useState, useEffect } from 'react';
 import {
   XAxis, YAxis, Tooltip, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area
+  BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, LineChart, Line
 } from 'recharts';
 import { getDashboardMetrics } from '../services/chartmogul';
 import { getUserAnalytics } from '../services/supabase';
 import type { ChartMogulMetrics, UserAnalytics } from '../types/bi';
 import styles from './Dashboard.module.css';
 
-// Colors matching savoir dashboard
+// Solarized colors for charts
+const COLORS = {
+  blue: '#268bd2',
+  cyan: '#2aa198',
+  green: '#859900',
+  yellow: '#b58900',
+  orange: '#cb4b16',
+  red: '#dc322f',
+  magenta: '#d33682',
+  violet: '#6c71c4',
+};
+
 const MODEL_COLORS: Record<string, string> = {
-  'Kling': '#6366f1',
-  'Veo': '#f59e0b',
-  'Seedance': '#10b981',
-  'Sora': '#ef4444',
-  'Wan': '#8b5cf6',
-  'Runway': '#ec4899',
-  'Pika': '#14b8a6',
-  'Luma': '#f97316',
-  'Unknown': '#94a3b8',
+  'Kling': COLORS.blue,
+  'Veo': COLORS.yellow,
+  'Seedance': COLORS.green,
+  'Sora': COLORS.red,
+  'Wan': COLORS.violet,
+  'Runway': COLORS.magenta,
+  'Pika': COLORS.cyan,
+  'Luma': COLORS.orange,
+  'Unknown': '#586e75',
 };
 
 function formatCurrency(value: number): string {
@@ -28,6 +39,13 @@ function formatCurrency(value: number): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+function formatTime(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.round(seconds % 60);
+  return `${mins}m ${secs}s`;
 }
 
 export default function Dashboard() {
@@ -64,123 +82,195 @@ export default function Dashboard() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1>Footage Dashboard</h1>
+        <h1>Business Metrics</h1>
         <button onClick={fetchData} className={styles.refreshButton}>Refresh</button>
       </div>
 
-      <div className={styles.grid}>
-        {/* Left Column */}
-        <div className={styles.column}>
-          {/* ARR & MRR Cards */}
-          <div className={styles.row}>
-            <div className={styles.card}>
-              <div className={styles.cardHeader}>
-                <span className={styles.cardLabel}>Annual Recurring Revenue</span>
-                <span className={styles.cardIcon}>📈</span>
-              </div>
-              <div className={styles.cardValue}>{formatCurrency(metrics?.arr || 0)}</div>
-              <div className={styles.cardSource}>Source: ChartMogul</div>
-            </div>
-            <div className={styles.card}>
-              <div className={styles.cardHeader}>
-                <span className={styles.cardLabel}>Monthly Recurring Revenue</span>
-                <span className={styles.cardIcon}>💵</span>
-              </div>
-              <div className={styles.cardValue}>{formatCurrency(metrics?.mrr || 0)}</div>
-              <div className={styles.cardSource}>Source: ChartMogul</div>
-            </div>
-          </div>
+      {/* Top Metrics Row */}
+      <div className={styles.metricsRow}>
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Monthly Recurring Revenue</div>
+          <div className={styles.metricValue}>{formatCurrency(metrics?.mrr || 0)}</div>
+          <div className={styles.metricSource}>ChartMogul</div>
+        </div>
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Annual Recurring Revenue</div>
+          <div className={styles.metricValue}>{formatCurrency(metrics?.arr || 0)}</div>
+          <div className={styles.metricSource}>ChartMogul</div>
+        </div>
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Total Subscribers</div>
+          <div className={styles.metricValue}>{metrics?.subscribers || 0}</div>
+          <div className={styles.metricSource}>ChartMogul</div>
+        </div>
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Churn Rate</div>
+          <div className={styles.metricValue}>{(metrics?.churnRate || 0).toFixed(1)}%</div>
+          <div className={styles.metricSource}>ChartMogul</div>
+        </div>
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Paid Trials (24h)</div>
+          <div className={styles.metricValue}>{metrics?.newCustomers24h || 0}</div>
+          <div className={styles.metricSource}>ChartMogul</div>
+        </div>
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Free Signups (24h)</div>
+          <div className={styles.metricValue}>{userAnalytics?.newAccounts24h || 0}</div>
+          <div className={styles.metricSource}>Supabase</div>
+        </div>
+      </div>
 
-          {/* Total Subscribers */}
-          <div className={styles.card}>
-            <div className={styles.cardLabel}>Total Subscribers</div>
-            <div className={styles.cardValueLarge}>{metrics?.subscribers || 0}</div>
-            {metrics?.subscribersOverTime && metrics.subscribersOverTime.length > 0 && (
-              <ResponsiveContainer width="100%" height={120}>
-                <BarChart data={metrics.subscribersOverTime}>
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                  <YAxis hide />
-                  <Bar dataKey="customers" fill="#10b981" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-            <div className={styles.cardSource}>Source: ChartMogul</div>
+      {/* Charts Grid */}
+      <div className={styles.chartsGrid}>
+        {/* ARR Growth */}
+        <div className={styles.chartCard}>
+          <div className={styles.chartHeader}>
+            ARR Growth
           </div>
-
-          {/* Weekly ARR Growth */}
-          <div className={styles.card}>
-            <div className={styles.cardLabel}>Weekly ARR Growth Over Time</div>
-            {metrics?.arrGrowth && metrics.arrGrowth.length > 0 && (
+          <div className={styles.chartBody}>
+            {metrics?.arrGrowth && metrics.arrGrowth.length > 0 ? (
               <ResponsiveContainer width="100%" height={200}>
                 <AreaChart data={metrics.arrGrowth}>
                   <defs>
                     <linearGradient id="arrGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#38bdf8" stopOpacity={0}/>
+                      <stop offset="5%" stopColor={COLORS.cyan} stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor={COLORS.cyan} stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                  <YAxis
-                    tick={{ fontSize: 10 }}
-                    stroke="#94a3b8"
-                    tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+                  <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#93a1a1' }} stroke="#586e75" />
+                  <YAxis tick={{ fontSize: 9, fill: '#93a1a1' }} stroke="#586e75" tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip
+                    contentStyle={{ background: '#073642', border: '1px solid #586e75', fontSize: 11 }}
+                    formatter={(value) => [formatCurrency(Number(value)), 'ARR']}
                   />
-                  <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'ARR']} />
-                  <Area
-                    type="monotone"
-                    dataKey="arr"
-                    stroke="#38bdf8"
-                    strokeWidth={2}
-                    fill="url(#arrGradient)"
-                  />
+                  <Area type="monotone" dataKey="arr" stroke={COLORS.cyan} strokeWidth={2} fill="url(#arrGradient)" />
                 </AreaChart>
               </ResponsiveContainer>
+            ) : (
+              <div className={styles.noData}>No ARR data available</div>
             )}
           </div>
+        </div>
 
-          {/* New Free Signups Per Day */}
-          <div className={styles.card}>
-            <div className={styles.cardLabel}>New Free Signups Per Day (Last 30 Days)</div>
+        {/* Subscribers Over Time */}
+        <div className={styles.chartCard}>
+          <div className={styles.chartHeader}>
+            Subscribers Over Time
+            <span className={styles.chartSubtitle}>{metrics?.subscribers || 0} total</span>
+          </div>
+          <div className={styles.chartBody}>
+            {metrics?.subscribersOverTime && metrics.subscribersOverTime.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={metrics.subscribersOverTime}>
+                  <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#93a1a1' }} stroke="#586e75" />
+                  <YAxis tick={{ fontSize: 9, fill: '#93a1a1' }} stroke="#586e75" />
+                  <Tooltip contentStyle={{ background: '#073642', border: '1px solid #586e75', fontSize: 11 }} />
+                  <Line type="monotone" dataKey="customers" stroke={COLORS.green} strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className={styles.noData}>No subscriber data available</div>
+            )}
+          </div>
+        </div>
+
+        {/* New Signups Per Day */}
+        <div className={styles.chartCard}>
+          <div className={styles.chartHeader}>
+            New Signups Per Day
+            <span className={styles.chartSubtitle}>Last 30 days</span>
+          </div>
+          <div className={styles.chartBody}>
             {userAnalytics?.signupsPerDay && userAnalytics.signupsPerDay.length > 0 ? (
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={userAnalytics.signupsPerDay}>
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                  <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#f87171" radius={[2, 2, 0, 0]} />
+                  <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#93a1a1' }} stroke="#586e75" />
+                  <YAxis tick={{ fontSize: 9, fill: '#93a1a1' }} stroke="#586e75" />
+                  <Tooltip contentStyle={{ background: '#073642', border: '1px solid #586e75', fontSize: 11 }} />
+                  <Bar dataKey="count" fill={COLORS.red} radius={[2, 2, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
               <div className={styles.noData}>No signup data available</div>
             )}
-            <div className={styles.cardSource}>Source: Supabase</div>
           </div>
         </div>
 
-        {/* Right Column */}
-        <div className={styles.column}>
-          {/* Conversion Rate */}
-          <div className={styles.card}>
-            <div className={styles.cardLabel}>Signup → Paid Conversion (Last 24h)</div>
-            <div className={styles.conversionValue}>{conversionRate}%</div>
-            <div className={styles.conversionDetail}>
-              <strong>{metrics?.newCustomers24h || 0} paid trials</strong>
-            </div>
-            <div className={styles.conversionSubtext}>
-              out of {userAnalytics?.newAccounts24h || 0} signups in last 24 hours
-            </div>
-            <div className={styles.conversionBar}>
-              <div
-                className={styles.conversionFill}
-                style={{ width: `${Math.min(parseFloat(conversionRate), 100)}%` }}
-              />
-            </div>
-            <div className={styles.cardSource}>Source: Combined (Supabase + ChartMogul)</div>
+        {/* Videos Per Hour */}
+        <div className={styles.chartCard}>
+          <div className={styles.chartHeader}>
+            Videos Created Per Hour
+            <span className={styles.chartSubtitle}>Last 72 hours</span>
           </div>
+          <div className={styles.chartBody}>
+            {userAnalytics?.videosPerHour && userAnalytics.videosPerHour.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={userAnalytics.videosPerHour}>
+                  <XAxis dataKey="hour" tick={{ fontSize: 8, fill: '#93a1a1' }} stroke="#586e75" />
+                  <YAxis tick={{ fontSize: 9, fill: '#93a1a1' }} stroke="#586e75" />
+                  <Tooltip contentStyle={{ background: '#073642', border: '1px solid #586e75', fontSize: 11 }} />
+                  <Bar dataKey="count" fill={COLORS.magenta} radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className={styles.noData}>No video data available</div>
+            )}
+          </div>
+        </div>
 
-          {/* Referrals */}
-          <div className={styles.card}>
-            <div className={styles.cardLabel}>New Accounts Referrals (Last 100)</div>
+        {/* Video Model Distribution */}
+        <div className={styles.chartCard}>
+          <div className={styles.chartHeader}>
+            Video Model Distribution
+            <span className={styles.chartSubtitle}>Last 1,000 videos</span>
+          </div>
+          <div className={styles.chartBody}>
+            {userAnalytics?.modelBreakdown && userAnalytics.modelBreakdown.length > 0 ? (
+              <>
+                <ResponsiveContainer width="100%" height={160}>
+                  <PieChart>
+                    <Pie
+                      data={userAnalytics.modelBreakdown}
+                      dataKey="count"
+                      nameKey="model"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={70}
+                    >
+                      {userAnalytics.modelBreakdown.map((entry) => (
+                        <Cell key={entry.model} fill={MODEL_COLORS[entry.model] || '#586e75'} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ background: '#073642', border: '1px solid #586e75', fontSize: 11 }}
+                      formatter={(value, _, props) => [`${value}`, props.payload.model]}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className={styles.legendGrid}>
+                  {userAnalytics.modelBreakdown.slice(0, 6).map((entry) => (
+                    <div key={entry.model} className={styles.legendItem}>
+                      <span className={styles.legendDot} style={{ background: MODEL_COLORS[entry.model] || '#586e75' }} />
+                      <span className={styles.legendLabel}>{entry.model}</span>
+                      <span className={styles.legendValue}>{entry.percentage}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className={styles.noData}>No model data available</div>
+            )}
+          </div>
+        </div>
+
+        {/* New Accounts Referrals */}
+        <div className={styles.chartCard}>
+          <div className={styles.chartHeader}>
+            New Accounts Referrals
+            <span className={styles.chartSubtitle}>Last 100 signups</span>
+          </div>
+          <div className={styles.chartBody}>
             {userAnalytics?.referralBreakdown && userAnalytics.referralBreakdown.length > 0 ? (
               <div className={styles.referralList}>
                 {userAnalytics.referralBreakdown.slice(0, 8).map((ref, i) => (
@@ -199,71 +289,67 @@ export default function Dashboard() {
             ) : (
               <div className={styles.noData}>No referral data available</div>
             )}
-            <div className={styles.cardSource}>Source: Supabase</div>
           </div>
+        </div>
 
-          {/* Video Model Distribution */}
-          <div className={styles.card}>
-            <div className={styles.cardLabel}>Video Model Distribution</div>
-            <div className={styles.cardSubLabel}>Last 1,000 videos by AI model</div>
-            {userAnalytics?.modelBreakdown && userAnalytics.modelBreakdown.length > 0 ? (
-              <>
-                <ResponsiveContainer width="100%" height={180}>
-                  <PieChart>
-                    <Pie
-                      data={userAnalytics.modelBreakdown}
-                      dataKey="count"
-                      nameKey="model"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={50}
-                      outerRadius={75}
-                    >
-                      {userAnalytics.modelBreakdown.map((entry) => (
-                        <Cell
-                          key={entry.model}
-                          fill={MODEL_COLORS[entry.model] || '#94a3b8'}
+        {/* Model Generation Time - NEW CHART */}
+        <div className={styles.chartCard}>
+          <div className={styles.chartHeader}>
+            Model Generation Time
+            <span className={styles.chartSubtitle}>Median seconds</span>
+          </div>
+          <div className={styles.chartBody}>
+            {userAnalytics?.modelMedianTime && userAnalytics.modelMedianTime.length > 0 ? (
+              <div className={styles.modelTimeList}>
+                {userAnalytics.modelMedianTime.slice(0, 8).map((item) => {
+                  const maxTime = Math.max(...userAnalytics.modelMedianTime.map(m => m.medianSeconds));
+                  return (
+                    <div key={item.model} className={styles.modelTimeItem}>
+                      <span className={styles.modelTimeName}>{item.model}</span>
+                      <div className={styles.modelTimeBar}>
+                        <div
+                          className={styles.modelTimeFill}
+                          style={{ width: `${(item.medianSeconds / maxTime) * 100}%` }}
                         />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value, _, props) => [`${value}`, props.payload.model]} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className={styles.legendGrid}>
-                  {userAnalytics.modelBreakdown.slice(0, 6).map((entry) => (
-                    <div key={entry.model} className={styles.legendItem}>
-                      <span
-                        className={styles.legendDot}
-                        style={{ background: MODEL_COLORS[entry.model] || '#94a3b8' }}
-                      />
-                      <span className={styles.legendLabel}>{entry.model}</span>
-                      <span className={styles.legendValue}>{entry.percentage}</span>
+                      </div>
+                      <span className={styles.modelTimeValue}>{formatTime(item.medianSeconds)}</span>
                     </div>
-                  ))}
-                </div>
-              </>
+                  );
+                })}
+              </div>
             ) : (
-              <div className={styles.noData}>No model data available</div>
+              <div className={styles.noData}>No generation time data available</div>
             )}
-            <div className={styles.cardSource}>Source: Supabase</div>
           </div>
+        </div>
 
-          {/* Videos Per Hour */}
-          <div className={styles.card}>
-            <div className={styles.cardLabel}>Videos Created Per Hour (Last 72 Hours)</div>
-            {userAnalytics?.videosPerHour && userAnalytics.videosPerHour.length > 0 ? (
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={userAnalytics.videosPerHour}>
-                  <XAxis dataKey="hour" tick={{ fontSize: 9 }} stroke="#94a3b8" />
-                  <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#6366f1" radius={[2, 2, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className={styles.noData}>No video data available</div>
-            )}
-            <div className={styles.cardSource}>Source: Supabase</div>
+        {/* Conversion Funnel - NEW CHART */}
+        <div className={styles.chartCard}>
+          <div className={styles.chartHeader}>
+            Signup → Paid Conversion
+            <span className={styles.chartSubtitle}>Last 24 hours</span>
+          </div>
+          <div className={styles.chartBody}>
+            <div className={styles.metricCard} style={{ background: 'transparent', border: 'none', padding: 0 }}>
+              <div className={styles.metricLabel}>Conversion Rate</div>
+              <div className={styles.metricValue} style={{ color: COLORS.green, fontSize: 36 }}>{conversionRate}%</div>
+              <div className={styles.metricSubtext}>
+                {metrics?.newCustomers24h || 0} paid trials from {userAnalytics?.newAccounts24h || 0} signups
+              </div>
+              <div className={styles.conversionBar}>
+                <div
+                  className={styles.conversionFill}
+                  style={{ width: `${Math.min(parseFloat(conversionRate), 100)}%` }}
+                />
+              </div>
+            </div>
+            <div style={{ marginTop: 20 }}>
+              <div className={styles.metricLabel}>Customer Lifetime Value</div>
+              <div className={styles.metricValueSmall} style={{ color: COLORS.yellow }}>
+                {formatCurrency(metrics?.ltv || 0)}
+              </div>
+              <div className={styles.metricSource}>ChartMogul</div>
+            </div>
           </div>
         </div>
       </div>

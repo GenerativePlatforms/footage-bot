@@ -124,9 +124,9 @@ http.route({
 
       // Fetch video data in parallel
       const [videosRes, videosHourlyRes] = await Promise.all([
-        // Model breakdown - get last 1000 videos with model info
+        // Model breakdown - get last 1000 videos with model and total_time
         fetch(
-          `${supabaseUrl}/rest/v1/videos?select=model&order=created_at.desc&limit=1000`,
+          `${supabaseUrl}/rest/v1/videos?select=model,total_time&order=created_at.desc&limit=1000`,
           { headers }
         ),
         // Videos per hour - get videos from last 72 hours
@@ -175,11 +175,14 @@ http.route({
         .map(([date, count]) => ({ date, count }))
         .sort((a, b) => a.date.localeCompare(b.date));
 
-      // Process model breakdown
+      // Process model breakdown and median time
       let modelBreakdown: { model: string; count: number; percentage: string }[] = [];
+      let modelMedianTime: { model: string; medianSeconds: number }[] = [];
+
       if (videosRes.ok) {
         const videos = await videosRes.json();
         const modelCounts: Record<string, number> = {};
+        const modelTimes: Record<string, number[]> = {};
 
         // Simplify model names
         const simplifyModel = (model: string): string => {
@@ -196,10 +199,25 @@ http.route({
           return model.split('/')[0] || model;
         };
 
+        // Calculate median
+        const calculateMedian = (arr: number[]): number => {
+          if (!arr || arr.length === 0) return 0;
+          const sorted = [...arr].sort((a, b) => a - b);
+          const mid = Math.floor(sorted.length / 2);
+          return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+        };
+
         for (const v of videos) {
           const model = simplifyModel(v.model);
           modelCounts[model] = (modelCounts[model] || 0) + 1;
+
+          // Collect total_time values
+          if (v.total_time != null && v.total_time > 0) {
+            if (!modelTimes[model]) modelTimes[model] = [];
+            modelTimes[model].push(v.total_time);
+          }
         }
+
         const total = videos.length;
         modelBreakdown = Object.entries(modelCounts)
           .map(([model, count]) => ({
@@ -208,6 +226,15 @@ http.route({
             percentage: `${((count / total) * 100).toFixed(1)}%`,
           }))
           .sort((a, b) => b.count - a.count);
+
+        // Calculate median time per model
+        modelMedianTime = Object.entries(modelTimes)
+          .map(([model, times]) => ({
+            model,
+            medianSeconds: calculateMedian(times),
+          }))
+          .filter(item => item.medianSeconds > 0)
+          .sort((a, b) => a.medianSeconds - b.medianSeconds);
       }
 
       // Process videos per hour
@@ -229,7 +256,7 @@ http.route({
         newAccounts24h,
         referralBreakdown,
         modelBreakdown,
-        modelMedianTime: [],
+        modelMedianTime,
         signupsPerDay,
         videosPerHour,
       }), {

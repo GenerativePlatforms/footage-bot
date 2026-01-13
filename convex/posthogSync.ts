@@ -179,12 +179,13 @@ export const fetchSnapshots = action({
       throw new Error("POSTHOG_API_KEY not configured");
     }
 
-    // Fetch snapshots for this recording
+    // Fetch snapshots for this recording - PostHog requires Content-Length header
     const snapshotsUrl = `${POSTHOG_API_URL}/projects/${POSTHOG_PROJECT_ID}/session_recordings/${posthogId}/snapshots`;
     const response = await fetch(snapshotsUrl, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
+        "Content-Length": "0",
       },
     });
 
@@ -194,6 +195,141 @@ export const fetchSnapshots = action({
     }
 
     const data = await response.json();
-    return data;
+
+    // PostHog returns snapshots in different formats depending on the version
+    // Handle the sources/blob format
+    if (data.sources && data.sources.length > 0) {
+      const allEvents: any[] = [];
+
+      // For blob_v2, we need to fetch with start and end blob keys
+      const blobV2Sources = data.sources.filter((s: any) => s.source === 'blob_v2');
+      const blobSources = data.sources.filter((s: any) => s.source === 'blob');
+
+      if (blobV2Sources.length > 0) {
+        // Get min and max blob keys for range request
+        const blobKeys = blobV2Sources.map((s: any) => parseInt(s.blob_key, 10));
+        const minKey = Math.min(...blobKeys);
+        const maxKey = Math.max(...blobKeys);
+
+        const blobUrl = `${POSTHOG_API_URL}/projects/${POSTHOG_PROJECT_ID}/session_recordings/${posthogId}/snapshots?source=blob_v2&start_blob_key=${minKey}&end_blob_key=${maxKey}`;
+
+        try {
+          const blobResponse = await fetch(blobUrl, {
+            method: "GET",
+            headers: {
+              "Authorization": `Bearer ${apiKey}`,
+              "Content-Length": "0",
+            },
+          });
+
+          if (blobResponse.ok) {
+            const text = await blobResponse.text();
+
+            // Parse NDJSON format (newline-delimited JSON)
+            const lines = text.trim().split('\n');
+
+            for (const line of lines) {
+              if (line.trim()) {
+                try {
+                  const parsed = JSON.parse(line);
+
+                  // PostHog blob_v2 format: [window_id, event_object]
+                  if (Array.isArray(parsed) && parsed.length === 2 && typeof parsed[0] === 'string') {
+                    const event = parsed[1];
+                    // Only include valid rrweb events:
+                    // - type must be a number (0-6 for rrweb event types)
+                    // - data must be an object (not a compressed string)
+                    // PostHog sometimes sends compressed events where data is binary string
+                    const isValidEvent = typeof event === 'object' &&
+                        typeof event.type === 'number' &&
+                        event.type >= 0 && event.type <= 6 &&
+                        typeof event.timestamp === 'number' &&
+                        (event.data === undefined || typeof event.data === 'object');
+
+                    if (isValidEvent) {
+                      allEvents.push(event);
+                    }
+                  }
+                  // Alternative format: {window_id, data: [...events]}
+                  else if (parsed.window_id && parsed.data && Array.isArray(parsed.data)) {
+                    for (const event of parsed.data) {
+                      if (typeof event === 'object' && event.type !== undefined) {
+                        allEvents.push(event);
+                      }
+                    }
+                  }
+                  // Single rrweb event
+                  else if (typeof parsed === 'object' && parsed.type !== undefined) {
+                    allEvents.push(parsed);
+                  }
+                } catch (parseErr) {
+                  // Not valid JSON line, skip
+                }
+              }
+            }
+          } else {
+            console.error("Blob_v2 fetch failed:", blobResponse.status, await blobResponse.text());
+          }
+        } catch (e) {
+          console.error('Failed to fetch blob_v2:', e);
+        }
+      }
+
+      // Handle legacy blob format
+      for (const source of blobSources) {
+        if (source.blob_key !== undefined) {
+          try {
+            const blobUrl = `${POSTHOG_API_URL}/projects/${POSTHOG_PROJECT_ID}/session_recordings/${posthogId}/snapshots?source=blob&blob_key=${source.blob_key}`;
+            const blobResponse = await fetch(blobUrl, {
+              method: "GET",
+              headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Length": "0",
+              },
+            });
+
+            if (blobResponse.ok) {
+              const blobData = await blobResponse.json();
+              if (Array.isArray(blobData)) {
+                allEvents.push(...blobData);
+              } else if (blobData.snapshot_data_by_window_id) {
+                for (const windowId in blobData.snapshot_data_by_window_id) {
+                  const windowEvents = blobData.snapshot_data_by_window_id[windowId];
+                  if (Array.isArray(windowEvents)) {
+                    allEvents.push(...windowEvents);
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.error('Failed to fetch blob:', source.blob_key, e);
+          }
+        }
+      }
+
+      // Sort events by timestamp
+      allEvents.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+      return allEvents;
+    }
+
+    // Handle snapshot_data_by_window_id format
+    if (data.snapshot_data_by_window_id) {
+      const allEvents: any[] = [];
+      for (const windowId in data.snapshot_data_by_window_id) {
+        const windowEvents = data.snapshot_data_by_window_id[windowId];
+        if (Array.isArray(windowEvents)) {
+          allEvents.push(...windowEvents);
+        }
+      }
+      allEvents.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+      return allEvents;
+    }
+
+    // Return as-is if already an array
+    if (Array.isArray(data)) {
+      return data;
+    }
+
+    return [];
   },
 });

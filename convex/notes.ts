@@ -18,6 +18,16 @@ export const getById = query({
   },
 });
 
+export const getBySessionId = query({
+  args: { sessionId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("notes")
+      .filter((q) => q.eq(q.field("sessionId"), args.sessionId))
+      .collect();
+  },
+});
+
 export const create = mutation({
   args: {
     sessionId: v.optional(v.string()),
