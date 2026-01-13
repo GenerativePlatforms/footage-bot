@@ -6,6 +6,7 @@
   var RRWEB_CDN = 'https://cdn.jsdelivr.net/npm/rrweb@2.0.0-alpha.11/dist/rrweb.min.js';
   var BATCH_SIZE = 50;
   var FLUSH_INTERVAL = 10000;
+  var MAX_BEACON_SIZE = 60000; // 60KB limit for sendBeacon
 
   // State
   var events = [];
@@ -77,21 +78,31 @@
       }
     });
 
-    // Use sendBeacon for reliability, fallback to fetch
-    if (navigator.sendBeacon) {
-      var sent = navigator.sendBeacon(IMPROVER_ENDPOINT, new Blob([payload], { type: 'application/json' }));
-      if (!sent) {
-        events.unshift.apply(events, batch);
-      }
-    } else {
+    var payloadSize = payload.length;
+
+    // Use fetch for large payloads (sendBeacon has ~64KB limit)
+    // Only use sendBeacon for small payloads during page unload
+    if (payloadSize > MAX_BEACON_SIZE || !navigator.sendBeacon) {
       fetch(IMPROVER_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: payload,
-        keepalive: true
+        body: payload
       }).catch(function() {
+        // Re-queue events on failure
         events.unshift.apply(events, batch);
       });
+    } else {
+      var sent = navigator.sendBeacon(IMPROVER_ENDPOINT, new Blob([payload], { type: 'application/json' }));
+      if (!sent) {
+        // Fallback to fetch if sendBeacon fails
+        fetch(IMPROVER_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload
+        }).catch(function() {
+          events.unshift.apply(events, batch);
+        });
+      }
     }
   }
 
@@ -108,7 +119,18 @@
       },
       maskAllInputs: true,
       maskTextContent: false,
-      recordCanvas: false
+      recordCanvas: false,
+      // Block heavy elements to reduce snapshot size
+      blockSelector: 'video, iframe, [data-rrweb-block]',
+      // Reduce image data
+      inlineImages: false,
+      // Sampling to reduce event frequency
+      sampling: {
+        scroll: 150,      // Throttle scroll events to 150ms
+        media: 800,       // Throttle media events to 800ms
+        input: 'last',    // Only record last input value
+        mousemove: false  // Disable mouse move tracking
+      }
     });
 
     if (!flushTimer) {
