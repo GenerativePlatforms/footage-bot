@@ -315,7 +315,9 @@ http.route({
                         request.headers.get("x-real-ip") ||
                         "unknown";
 
-      await ctx.runMutation(api.recordings.create, {
+      console.log("Recording ingest - sessionId:", sessionId, "events:", events.length);
+
+      const result = await ctx.runMutation(api.recordings.create, {
         sessionId,
         ipAddress,
         events,
@@ -331,12 +333,17 @@ http.route({
         } : undefined,
       });
 
-      return new Response(JSON.stringify({ success: true }), {
+      console.log("Recording ingest - result:", result);
+
+      return new Response(JSON.stringify({ success: true, id: result }), {
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
       });
     } catch (error) {
       console.error("Recording ingest error:", error);
-      return new Response(JSON.stringify({ error: "Failed to ingest recording" }), {
+      return new Response(JSON.stringify({
+        error: "Failed to ingest recording",
+        details: error instanceof Error ? error.message : String(error)
+      }), {
         status: 500,
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
       });

@@ -24,6 +24,16 @@ export const list = query({
   },
 });
 
+// List all recordings (no index)
+export const listAll = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit = 50 }) => {
+    return await ctx.db
+      .query("recordings")
+      .take(limit);
+  },
+});
+
 // List recordings by IP
 export const listByIp = query({
   args: { ipAddress: v.string(), limit: v.optional(v.number()) },
