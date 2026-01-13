@@ -13,6 +13,7 @@ export async function getUserAnalytics(): Promise<UserAnalytics> {
         newAccounts24h: 0,
         referralBreakdown: [],
         modelBreakdown: [],
+        modelMedianTime: [],
         signupsPerDay: [],
         videosPerHour: [],
       };
@@ -25,6 +26,7 @@ export async function getUserAnalytics(): Promise<UserAnalytics> {
       newAccounts24h: 0,
       referralBreakdown: [],
       modelBreakdown: [],
+      modelMedianTime: [],
       signupsPerDay: [],
       videosPerHour: [],
     };

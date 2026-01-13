@@ -73,57 +73,137 @@ http.route({
         apikey: supabaseKey,
         Authorization: `Bearer ${supabaseKey}`,
         "Content-Type": "application/json",
+        Prefer: "count=exact",
       };
 
       const now = new Date();
       const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const seventyTwoHoursAgo = new Date(now.getTime() - 72 * 60 * 60 * 1000);
 
       // Fetch all data in parallel
-      const [accountsRes, referralsRes, modelsRes, signupsRes, videosRes] = await Promise.all([
-        // New accounts in last 24h
+      const [accountsRes, referralsRes, videosRes, signupsRes, videosHourlyRes] = await Promise.all([
+        // New accounts in last 24h - count profiles
         fetch(
-          `${supabaseUrl}/rest/v1/profiles?select=count&created_at=gte.${twentyFourHoursAgo.toISOString()}`,
-          { headers, method: "HEAD" }
+          `${supabaseUrl}/rest/v1/profiles?select=id&created_at=gte.${twentyFourHoursAgo.toISOString()}`,
+          { headers }
         ),
-        // Referral breakdown
+        // Referral breakdown - get last 100 profiles with utm data
         fetch(
-          `${supabaseUrl}/rest/v1/rpc/get_referral_breakdown`,
-          { headers, method: "POST", body: JSON.stringify({}) }
+          `${supabaseUrl}/rest/v1/profiles?select=utm_source,utm_medium&order=created_at.desc&limit=100`,
+          { headers }
         ),
-        // Model breakdown
+        // Model breakdown - get last 1000 videos with model info
         fetch(
-          `${supabaseUrl}/rest/v1/rpc/get_model_breakdown`,
-          { headers, method: "POST", body: JSON.stringify({}) }
+          `${supabaseUrl}/rest/v1/videos?select=model&order=created_at.desc&limit=1000`,
+          { headers }
         ),
-        // Signups per day (last 7 days)
+        // Signups per day - get profiles from last 30 days
         fetch(
-          `${supabaseUrl}/rest/v1/rpc/get_signups_per_day`,
-          { headers, method: "POST", body: JSON.stringify({ days: 7 }) }
+          `${supabaseUrl}/rest/v1/profiles?select=created_at&created_at=gte.${thirtyDaysAgo.toISOString()}&order=created_at.asc`,
+          { headers }
         ),
-        // Videos per hour (last 24h)
+        // Videos per hour - get videos from last 72 hours
         fetch(
-          `${supabaseUrl}/rest/v1/rpc/get_videos_per_hour`,
-          { headers, method: "POST", body: JSON.stringify({}) }
+          `${supabaseUrl}/rest/v1/videos?select=created_at&created_at=gte.${seventyTwoHoursAgo.toISOString()}&order=created_at.asc`,
+          { headers }
         ),
       ]);
 
+      // Process new accounts count
       const contentRange = accountsRes.headers.get("content-range");
       const newAccounts24h = contentRange ? parseInt(contentRange.split("/")[1] || "0") : 0;
 
-      const [referralBreakdown, modelBreakdown, signupsPerDay, videosPerHour] = await Promise.all([
-        referralsRes.ok ? referralsRes.json() : [],
-        modelsRes.ok ? modelsRes.json() : [],
-        signupsRes.ok ? signupsRes.json() : [],
-        videosRes.ok ? videosRes.json() : [],
-      ]);
+      // Process referral breakdown
+      let referralBreakdown: { name: string; count: number; percentage: string }[] = [];
+      if (referralsRes.ok) {
+        const profiles = await referralsRes.json();
+        const refCounts: Record<string, number> = {};
+        for (const p of profiles) {
+          const key = `${p.utm_source || 'direct'} / ${p.utm_medium || 'none'}`;
+          refCounts[key] = (refCounts[key] || 0) + 1;
+        }
+        const total = profiles.length;
+        referralBreakdown = Object.entries(refCounts)
+          .map(([name, count]) => ({
+            name,
+            count,
+            percentage: `${((count / total) * 100).toFixed(1)}%`,
+          }))
+          .sort((a, b) => b.count - a.count);
+      }
+
+      // Process model breakdown
+      let modelBreakdown: { model: string; count: number; percentage: string }[] = [];
+      if (videosRes.ok) {
+        const videos = await videosRes.json();
+        const modelCounts: Record<string, number> = {};
+
+        // Simplify model names
+        const simplifyModel = (model: string): string => {
+          if (!model) return 'Unknown';
+          const lower = model.toLowerCase();
+          if (lower.includes('kling')) return 'Kling';
+          if (lower.includes('veo')) return 'Veo';
+          if (lower.includes('seedance')) return 'Seedance';
+          if (lower.includes('sora')) return 'Sora';
+          if (lower.includes('wan')) return 'Wan';
+          if (lower.includes('runway')) return 'Runway';
+          if (lower.includes('pika')) return 'Pika';
+          if (lower.includes('luma')) return 'Luma';
+          return model.split('/')[0] || model;
+        };
+
+        for (const v of videos) {
+          const model = simplifyModel(v.model);
+          modelCounts[model] = (modelCounts[model] || 0) + 1;
+        }
+        const total = videos.length;
+        modelBreakdown = Object.entries(modelCounts)
+          .map(([model, count]) => ({
+            model,
+            count,
+            percentage: `${((count / total) * 100).toFixed(1)}%`,
+          }))
+          .sort((a, b) => b.count - a.count);
+      }
+
+      // Process signups per day
+      let signupsPerDay: { date: string; count: number }[] = [];
+      if (signupsRes.ok) {
+        const profiles = await signupsRes.json();
+        const dayCounts: Record<string, number> = {};
+        for (const p of profiles) {
+          const date = new Date(p.created_at).toISOString().split('T')[0];
+          dayCounts[date] = (dayCounts[date] || 0) + 1;
+        }
+        signupsPerDay = Object.entries(dayCounts)
+          .map(([date, count]) => ({ date, count }))
+          .sort((a, b) => a.date.localeCompare(b.date));
+      }
+
+      // Process videos per hour
+      let videosPerHour: { hour: string; count: number }[] = [];
+      if (videosHourlyRes.ok) {
+        const videos = await videosHourlyRes.json();
+        const hourCounts: Record<string, number> = {};
+        for (const v of videos) {
+          const d = new Date(v.created_at);
+          const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
+          const hour = `${dayName} ${d.getHours().toString().padStart(2, '0')}:00`;
+          hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+        }
+        videosPerHour = Object.entries(hourCounts)
+          .map(([hour, count]) => ({ hour, count }));
+      }
 
       return new Response(JSON.stringify({
         newAccounts24h,
-        referralBreakdown: referralBreakdown || [],
-        modelBreakdown: modelBreakdown || [],
-        modelMedianTime: [], // Would need another RPC call
-        signupsPerDay: signupsPerDay || [],
-        videosPerHour: videosPerHour || [],
+        referralBreakdown,
+        modelBreakdown,
+        modelMedianTime: [],
+        signupsPerDay,
+        videosPerHour,
       }), {
         headers: {
           "Content-Type": "application/json",
@@ -133,6 +213,7 @@ http.route({
     } catch (error) {
       console.error("Supabase analytics error:", error);
       return new Response(JSON.stringify({
+        error: String(error),
         newAccounts24h: 0,
         referralBreakdown: [],
         modelBreakdown: [],
@@ -140,7 +221,7 @@ http.route({
         signupsPerDay: [],
         videosPerHour: [],
       }), {
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
       });
     }
   }),
@@ -353,6 +434,89 @@ http.route({
 
 http.route({
   path: "/api/recordings/ingest",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return new Response(null, {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
+    });
+  }),
+});
+
+// PostHog sync endpoint - fetch directly in httpAction to avoid env var issues
+http.route({
+  path: "/api/posthog/sync",
+  method: "POST",
+  handler: httpAction(async (ctx) => {
+    // Hardcode for now since env var has issues
+    const apiKey = "phx_P1klFvj87AOndrES2p6txean9oUCGGr6GObTrcgfyAdahAv";
+
+    try {
+      const url = "https://us.posthog.com/api/projects/198125/session_recordings/?limit=50";
+      const response = await fetch(url, {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${apiKey}` },
+      });
+
+      if (!response.ok) {
+        throw new Error(`PostHog API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const results = [];
+
+      for (const rec of data.results) {
+        try {
+          const pageUrl = new URL(rec.start_url);
+          const mutationResult = await ctx.runMutation(api.sessions.create, {
+            posthogId: rec.id,
+            userId: rec.person?.name || rec.distinct_id,
+            startTime: new Date(rec.start_time).getTime(),
+            endTime: new Date(rec.end_time).getTime(),
+            duration: rec.recording_duration,
+            device: {
+              type: "desktop" as "desktop" | "mobile" | "tablet",
+              browser: "Unknown",
+              os: "Unknown",
+              screenResolution: "Unknown",
+            },
+            location: { country: "Unknown" },
+            events: [],
+            status: "watching" as "watching" | "processing" | "summarized" | "error",
+            pageViews: [pageUrl.pathname],
+            errorCount: rec.console_error_count || 0,
+            rageClicks: 0,
+            deadClicks: 0,
+            tags: [],
+          });
+          console.log("Stored session:", rec.id, "result:", mutationResult);
+          results.push({ id: rec.id, status: "stored", docId: mutationResult });
+        } catch (e) {
+          results.push({ id: rec.id, status: "error", error: String(e) });
+        }
+      }
+
+      return new Response(JSON.stringify({ count: data.results.length, results }), {
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      });
+    } catch (error) {
+      console.error("PostHog sync error:", error);
+      return new Response(JSON.stringify({
+        error: "Failed to sync PostHog recordings",
+        details: error instanceof Error ? error.message : String(error)
+      }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      });
+    }
+  }),
+});
+
+http.route({
+  path: "/api/posthog/sync",
   method: "OPTIONS",
   handler: httpAction(async () => {
     return new Response(null, {

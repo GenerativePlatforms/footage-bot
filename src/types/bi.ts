@@ -53,10 +53,16 @@ export interface VideoHourEntry {
   count: number;
 }
 
+export interface ModelMedianTimeEntry {
+  model: string;
+  medianSeconds: number;
+}
+
 export interface UserAnalytics {
   newAccounts24h: number;
   referralBreakdown: ReferralEntry[];
   modelBreakdown: ModelBreakdownEntry[];
+  modelMedianTime: ModelMedianTimeEntry[];
   signupsPerDay: SignupEntry[];
   videosPerHour: VideoHourEntry[];
 }

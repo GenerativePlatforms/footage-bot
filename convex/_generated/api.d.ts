@@ -9,8 +9,10 @@
  */
 
 import type * as briefings from "../briefings.js";
+import type * as fetchPosthogSessions from "../fetchPosthogSessions.js";
 import type * as http from "../http.js";
 import type * as notes from "../notes.js";
+import type * as posthogSync from "../posthogSync.js";
 import type * as recordings from "../recordings.js";
 import type * as sessions from "../sessions.js";
 
@@ -22,8 +24,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   briefings: typeof briefings;
+  fetchPosthogSessions: typeof fetchPosthogSessions;
   http: typeof http;
   notes: typeof notes;
+  posthogSync: typeof posthogSync;
   recordings: typeof recordings;
   sessions: typeof sessions;
 }>;

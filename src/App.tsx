@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard'
 import Sessions from './pages/Sessions'
 import SessionReplay from './pages/SessionReplay'
 import Serps from './pages/Serps'
+import Metrics from './pages/Metrics'
 import Login from './pages/Login'
 import Layout from './components/Layout'
 
@@ -58,6 +59,14 @@ export default function App() {
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route
+          path="/metrics"
+          element={
+            <ProtectedRoute>
+              <Metrics />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/"
           element={

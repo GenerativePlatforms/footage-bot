@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import {
-  XAxis, YAxis, Tooltip, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, PieChart, Pie, Cell, Area, AreaChart
 } from 'recharts';
 import { getDashboardMetrics } from '../services/chartmogul';
 import { getUserAnalytics } from '../services/supabase';
 import type { ChartMogulMetrics, UserAnalytics } from '../types/bi';
-import styles from './Dashboard.module.css';
+import styles from './Metrics.module.css';
 
 // Colors matching savoir dashboard
 const MODEL_COLORS: Record<string, string> = {
@@ -15,10 +15,6 @@ const MODEL_COLORS: Record<string, string> = {
   'Seedance': '#10b981',
   'Sora': '#ef4444',
   'Wan': '#8b5cf6',
-  'Runway': '#ec4899',
-  'Pika': '#14b8a6',
-  'Luma': '#f97316',
-  'Unknown': '#94a3b8',
 };
 
 function formatCurrency(value: number): string {
@@ -30,31 +26,40 @@ function formatCurrency(value: number): string {
   }).format(value);
 }
 
-export default function Dashboard() {
+function formatTime(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+}
+
+export default function Metrics() {
   const [metrics, setMetrics] = useState<ChartMogulMetrics | null>(null);
   const [userAnalytics, setUserAnalytics] = useState<UserAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [metricsData, analyticsData] = await Promise.all([
-        getDashboardMetrics().catch(() => null),
-        getUserAnalytics().catch(() => null),
-      ]);
-      setMetrics(metricsData);
-      setUserAnalytics(analyticsData);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    async function fetchData() {
+      try {
+        const [metricsData, analyticsData] = await Promise.all([
+          getDashboardMetrics().catch(() => null),
+          getUserAnalytics().catch(() => null),
+        ]);
+        setMetrics(metricsData);
+        setUserAnalytics(analyticsData);
+      } finally {
+        setLoading(false);
+      }
+    }
     fetchData();
   }, []);
 
   if (loading) {
-    return <div className={styles.loading}>Loading metrics...</div>;
+    return (
+      <div className={styles.page}>
+        <div className={styles.loading}>Loading metrics...</div>
+      </div>
+    );
   }
 
   const conversionRate = userAnalytics?.newAccounts24h
@@ -62,11 +67,8 @@ export default function Dashboard() {
     : '0.0';
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <h1>Footage Dashboard</h1>
-        <button onClick={fetchData} className={styles.refreshButton}>Refresh</button>
-      </div>
+    <div className={styles.page}>
+      <h1 className={styles.title}>Footage Dashboard</h1>
 
       <div className={styles.grid}>
         {/* Left Column */}
@@ -141,7 +143,7 @@ export default function Dashboard() {
           {/* New Free Signups Per Day */}
           <div className={styles.card}>
             <div className={styles.cardLabel}>New Free Signups Per Day (Last 30 Days)</div>
-            {userAnalytics?.signupsPerDay && userAnalytics.signupsPerDay.length > 0 ? (
+            {userAnalytics?.signupsPerDay && userAnalytics.signupsPerDay.length > 0 && (
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={userAnalytics.signupsPerDay}>
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="#94a3b8" />
@@ -150,8 +152,6 @@ export default function Dashboard() {
                   <Bar dataKey="count" fill="#f87171" radius={[2, 2, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            ) : (
-              <div className={styles.noData}>No signup data available</div>
             )}
             <div className={styles.cardSource}>Source: Supabase</div>
           </div>
@@ -181,7 +181,7 @@ export default function Dashboard() {
           {/* Referrals */}
           <div className={styles.card}>
             <div className={styles.cardLabel}>New Accounts Referrals (Last 100)</div>
-            {userAnalytics?.referralBreakdown && userAnalytics.referralBreakdown.length > 0 ? (
+            {userAnalytics?.referralBreakdown && userAnalytics.referralBreakdown.length > 0 && (
               <div className={styles.referralList}>
                 {userAnalytics.referralBreakdown.slice(0, 8).map((ref, i) => (
                   <div key={i} className={styles.referralItem}>
@@ -196,8 +196,6 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className={styles.noData}>No referral data available</div>
             )}
             <div className={styles.cardSource}>Source: Supabase</div>
           </div>
@@ -206,7 +204,7 @@ export default function Dashboard() {
           <div className={styles.card}>
             <div className={styles.cardLabel}>Video Model Distribution</div>
             <div className={styles.cardSubLabel}>Last 1,000 videos by AI model</div>
-            {userAnalytics?.modelBreakdown && userAnalytics.modelBreakdown.length > 0 ? (
+            {userAnalytics?.modelBreakdown && userAnalytics.modelBreakdown.length > 0 && (
               <>
                 <ResponsiveContainer width="100%" height={180}>
                   <PieChart>
@@ -230,7 +228,7 @@ export default function Dashboard() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className={styles.legendGrid}>
-                  {userAnalytics.modelBreakdown.slice(0, 6).map((entry) => (
+                  {userAnalytics.modelBreakdown.map((entry) => (
                     <div key={entry.model} className={styles.legendItem}>
                       <span
                         className={styles.legendDot}
@@ -242,8 +240,38 @@ export default function Dashboard() {
                   ))}
                 </div>
               </>
-            ) : (
-              <div className={styles.noData}>No model data available</div>
+            )}
+            <div className={styles.cardSource}>Source: Supabase</div>
+          </div>
+
+          {/* Median Generation Time */}
+          <div className={styles.card}>
+            <div className={styles.cardLabel}>Median Generation Time by Model</div>
+            <div className={styles.cardSubLabel}>Based on last 1,000 videos</div>
+            {userAnalytics?.modelMedianTime && userAnalytics.modelMedianTime.length > 0 && (
+              <div className={styles.timeBarList}>
+                {userAnalytics.modelMedianTime.map((item) => (
+                  <div key={item.model} className={styles.timeBarItem}>
+                    <div className={styles.timeBarLabel}>{item.model}</div>
+                    <div className={styles.timeBarContainer}>
+                      <div
+                        className={styles.timeBar}
+                        style={{
+                          width: `${Math.min((item.medianSeconds / 240) * 100, 100)}%`,
+                          background: MODEL_COLORS[item.model] || '#94a3b8'
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+                <div className={styles.timeAxis}>
+                  <span>0s</span>
+                  <span>1m</span>
+                  <span>2m</span>
+                  <span>3m</span>
+                  <span>4m</span>
+                </div>
+              </div>
             )}
             <div className={styles.cardSource}>Source: Supabase</div>
           </div>
@@ -251,7 +279,7 @@ export default function Dashboard() {
           {/* Videos Per Hour */}
           <div className={styles.card}>
             <div className={styles.cardLabel}>Videos Created Per Hour (Last 72 Hours)</div>
-            {userAnalytics?.videosPerHour && userAnalytics.videosPerHour.length > 0 ? (
+            {userAnalytics?.videosPerHour && userAnalytics.videosPerHour.length > 0 && (
               <ResponsiveContainer width="100%" height={180}>
                 <BarChart data={userAnalytics.videosPerHour}>
                   <XAxis dataKey="hour" tick={{ fontSize: 9 }} stroke="#94a3b8" />
@@ -260,8 +288,6 @@ export default function Dashboard() {
                   <Bar dataKey="count" fill="#6366f1" radius={[2, 2, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            ) : (
-              <div className={styles.noData}>No video data available</div>
             )}
             <div className={styles.cardSource}>Source: Supabase</div>
           </div>
