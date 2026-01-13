@@ -4,6 +4,9 @@ import Dashboard from './pages/Dashboard'
 import Sessions from './pages/Sessions'
 import SessionReplay from './pages/SessionReplay'
 import Serps from './pages/Serps'
+import CustomerSupport from './pages/CustomerSupport'
+import Moderator from './pages/Moderator'
+import AdCampaigns from './pages/AdCampaigns'
 import Metrics from './pages/Metrics'
 import Login from './pages/Login'
 import Layout from './components/Layout'
@@ -75,10 +78,13 @@ export default function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Dashboard />} />
-          <Route path="sessions" element={<Sessions />} />
+          <Route index element={<Sessions />} />
           <Route path="sessions/:sessionId" element={<SessionReplay />} />
+          <Route path="dashboard" element={<Dashboard />} />
           <Route path="serps" element={<Serps />} />
+          <Route path="support" element={<CustomerSupport />} />
+          <Route path="moderator" element={<Moderator />} />
+          <Route path="campaigns" element={<AdCampaigns />} />
         </Route>
       </Routes>
     </AuthProvider>

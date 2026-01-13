@@ -4,6 +4,18 @@ import { api } from '../../convex/_generated/api'
 import { useEffect, useRef, useState } from 'react'
 import styles from './SessionReplay.module.css'
 
+type Sentiment = 'positive' | 'neutral' | 'negative' | 'frustrated'
+
+function getSentimentStyle(sentiment: Sentiment | undefined): { bg: string; color: string } {
+  switch (sentiment) {
+    case 'positive': return { bg: 'rgba(34, 197, 94, 0.15)', color: '#22c55e' }
+    case 'neutral': return { bg: 'rgba(234, 179, 8, 0.15)', color: '#eab308' }
+    case 'negative': return { bg: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }
+    case 'frustrated': return { bg: 'rgba(249, 115, 22, 0.15)', color: '#f97316' }
+    default: return { bg: 'rgba(100, 116, 139, 0.1)', color: '#64748b' }
+  }
+}
+
 export default function SessionReplay() {
   const { sessionId } = useParams<{ sessionId: string }>()
   const navigate = useNavigate()
@@ -12,40 +24,28 @@ export default function SessionReplay() {
   const [error, setError] = useState<string | null>(null)
   const [snapshots, setSnapshots] = useState<any[] | null>(null)
   const [loadingSnapshots, setLoadingSnapshots] = useState(false)
+  const [showNotes, setShowNotes] = useState(false)
 
-  // Query the session from the sessions table using posthogId
   const session = useQuery(
     api.sessions.getByPosthogId,
     sessionId ? { posthogId: sessionId } : 'skip'
   )
 
-  // Query notes for this session
   const notes = useQuery(
     api.notes.getBySessionId,
     sessionId ? { sessionId } : 'skip'
   )
 
-  // Action to fetch PostHog snapshots
   const fetchSnapshots = useAction(api.posthogSync.fetchSnapshots)
 
-  // Fetch snapshots when session is loaded
   useEffect(() => {
     if (!session || !sessionId || snapshots !== null || loadingSnapshots) return
 
     setLoadingSnapshots(true)
     fetchSnapshots({ posthogId: sessionId })
       .then((data) => {
-        // PostHog returns snapshots in a specific format - extract rrweb events
         if (data && data.sources) {
-          // Combine all snapshot sources into rrweb events
           const events: any[] = []
-          for (const source of data.sources) {
-            if (source.source === 'blob' && source.blob_key) {
-              // Need to fetch blob data - for now just note it
-              console.log('Blob source found:', source.blob_key)
-            }
-          }
-          // If there are snapshot_data_by_window_id, extract events
           if (data.snapshot_data_by_window_id) {
             for (const windowId in data.snapshot_data_by_window_id) {
               const windowData = data.snapshot_data_by_window_id[windowId]
@@ -63,7 +63,7 @@ export default function SessionReplay() {
       })
       .catch((err) => {
         console.error('Failed to fetch snapshots:', err)
-        setError('Failed to load session recording from PostHog')
+        setError('Failed to load session recording')
         setSnapshots([])
       })
       .finally(() => {
@@ -71,22 +71,36 @@ export default function SessionReplay() {
       })
   }, [session, sessionId, snapshots, loadingSnapshots, fetchSnapshots])
 
-  // Initialize video player when snapshots are loaded
   useEffect(() => {
     if (!snapshots || snapshots.length === 0 || !playerRef.current || playerInstance) return
 
-    // Dynamically import rrweb-player to avoid SSR issues
     import('rrweb-player').then(({ default: rrwebPlayer }) => {
-      // Clear any existing content
       playerRef.current!.innerHTML = ''
 
       try {
+        // Debug: log event info
+        console.log('Total events:', snapshots.length)
+        const hasFullSnapshot = snapshots.some((e: any) => e && e.type === 2)
+        console.log('Has FullSnapshot:', hasFullSnapshot)
+
+        if (!hasFullSnapshot) {
+          console.error('No FullSnapshot event found - player cannot render')
+          setError('Recording data incomplete - missing full snapshot')
+          return
+        }
+
+        // Filter out any malformed events (must have type and timestamp)
+        const validEvents = snapshots.filter((e: any) =>
+          e && typeof e.type === 'number' && typeof e.timestamp === 'number'
+        )
+        console.log('Valid events:', validEvents.length)
+
         const player = new rrwebPlayer({
           target: playerRef.current!,
           props: {
-            events: snapshots,
-            width: 1024,
-            height: 576,
+            events: validEvents,
+            width: 800,
+            height: 450,
             autoPlay: false,
             showController: true,
             speedOption: [1, 2, 4, 8],
@@ -110,7 +124,7 @@ export default function SessionReplay() {
   }, [snapshots, playerInstance])
 
   if (session === undefined) {
-    return <div className={styles.loading}>Loading session...</div>
+    return <div className={styles.loading}>Loading...</div>
   }
 
   if (session === null) {
@@ -130,147 +144,119 @@ export default function SessionReplay() {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
+  const sentiment = session.summary?.sentiment as Sentiment | undefined
+  const sentimentStyle = getSentimentStyle(sentiment)
+
   return (
     <div className={styles.container}>
+      {/* Compact Header */}
       <div className={styles.header}>
         <button onClick={() => navigate('/sessions')} className={styles.backButton}>
-          &larr; Back to Sessions
+          ←
         </button>
-        <h1>Session Replay</h1>
-      </div>
-
-      <div className={styles.metadata}>
-        <div className={styles.metaItem}>
-          <span className={styles.label}>Session ID:</span>
-          <span className={styles.value}>{session.posthogId}</span>
-        </div>
-        <div className={styles.metaItem}>
-          <span className={styles.label}>User:</span>
-          <span className={styles.value}>{session.userId || 'Anonymous'}</span>
-        </div>
-        <div className={styles.metaItem}>
-          <span className={styles.label}>Page:</span>
-          <span className={styles.value}>{session.pageViews?.[0] || 'Unknown'}</span>
-        </div>
-        <div className={styles.metaItem}>
-          <span className={styles.label}>Started:</span>
-          <span className={styles.value}>{new Date(session.startTime).toLocaleString()}</span>
-        </div>
-        <div className={styles.metaItem}>
-          <span className={styles.label}>Duration:</span>
-          <span className={styles.value}>{formatDuration(session.duration)}</span>
-        </div>
-        <div className={styles.metaItem}>
-          <span className={styles.label}>Device:</span>
-          <span className={styles.value}>
-            {session.device.type} / {session.device.browser} / {session.device.os}
+        <div className={styles.headerInfo}>
+          <span className={styles.userEmail}>{session.userId || 'Anonymous'}</span>
+          <span className={styles.headerMeta}>
+            {formatDuration(session.duration)} · {session.pageViews?.[0] || '/'} · {new Date(session.startTime).toLocaleDateString()}
           </span>
         </div>
-        <div className={styles.metaItem}>
-          <span className={styles.label}>Location:</span>
-          <span className={styles.value}>
-            {session.location.city ? `${session.location.city}, ` : ''}{session.location.country}
+        {session.summary && (
+          <span
+            className={styles.sentimentBadge}
+            style={{ backgroundColor: sentimentStyle.bg, color: sentimentStyle.color }}
+          >
+            {session.summary.sentiment} · {session.summary.engagementScore}/10
           </span>
-        </div>
-        {session.errorCount > 0 && (
-          <div className={styles.metaItem}>
-            <span className={styles.label}>Errors:</span>
-            <span className={styles.value} style={{ color: '#ef4444' }}>{session.errorCount}</span>
-          </div>
         )}
       </div>
 
-      {loadingSnapshots ? (
-        <div className={styles.loading}>Loading session recording...</div>
-      ) : error ? (
-        <div className={styles.error}>{error}</div>
-      ) : snapshots && snapshots.length > 0 ? (
-        <div className={styles.playerWrapper}>
-          <div ref={playerRef} className={styles.player} />
-        </div>
-      ) : (
-        <div className={styles.noRecording}>
-          <p>No recording available for this session.</p>
-          <p className={styles.hint}>The session replay may still be processing in PostHog.</p>
-        </div>
-      )}
-
+      {/* AI Analysis - Condensed */}
       {session.summary && (
         <div className={styles.analysis}>
-          <h3>AI Analysis</h3>
-          <div className={styles.analysisContent}>
-            <div className={styles.analysisSection}>
-              <h4>Overview</h4>
-              <p>{session.summary.overview}</p>
-            </div>
-            <div className={styles.analysisSection}>
-              <h4>User Intent</h4>
-              <p>{session.summary.userIntent}</p>
-            </div>
-            {session.summary.painPoints?.length > 0 && (
-              <div className={styles.analysisSection}>
-                <h4>Pain Points</h4>
+          <div className={styles.analysisHeader}>
+            <h3>AI Analysis</h3>
+            {session.errorCount > 0 && (
+              <span className={styles.errorBadge}>{session.errorCount} errors</span>
+            )}
+          </div>
+
+          <p className={styles.overview}>{session.summary.overview}</p>
+
+          <div className={styles.analysisGrid}>
+            <div className={styles.analysisCol}>
+              <h4>Pain Points</h4>
+              {session.summary.painPoints?.length > 0 ? (
                 <ul>
-                  {session.summary.painPoints.map((point: string, i: number) => (
+                  {session.summary.painPoints.slice(0, 3).map((point: string, i: number) => (
                     <li key={i}>{point}</li>
                   ))}
                 </ul>
-              </div>
-            )}
-            {session.summary.successfulFlows?.length > 0 && (
-              <div className={styles.analysisSection}>
-                <h4>Successful Flows</h4>
+              ) : (
+                <p className={styles.none}>None identified</p>
+              )}
+            </div>
+
+            <div className={styles.analysisCol}>
+              <h4>Recommendations</h4>
+              {session.summary.recommendations?.length > 0 ? (
                 <ul>
-                  {session.summary.successfulFlows.map((flow: string, i: number) => (
-                    <li key={i}>{flow}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {session.summary.recommendations?.length > 0 && (
-              <div className={styles.analysisSection}>
-                <h4>Recommendations</h4>
-                <ul>
-                  {session.summary.recommendations.map((rec: string, i: number) => (
+                  {session.summary.recommendations.slice(0, 3).map((rec: string, i: number) => (
                     <li key={i}>{rec}</li>
                   ))}
                 </ul>
-              </div>
-            )}
-            <div className={styles.analysisSection}>
-              <h4>Metrics</h4>
-              <p>Sentiment: <strong>{session.summary.sentiment}</strong></p>
-              <p>Engagement Score: <strong>{session.summary.engagementScore}/10</strong></p>
+              ) : (
+                <p className={styles.none}>None</p>
+              )}
             </div>
           </div>
         </div>
       )}
 
+      {/* Notes - Collapsible */}
       {notes && notes.length > 0 && (
-        <div className={styles.notes}>
-          <h3>Session Notes</h3>
-          <div className={styles.notesList}>
-            {notes.map((note) => (
-              <div key={note._id} className={`${styles.noteCard} ${styles[note.priority]}`}>
-                <div className={styles.noteHeader}>
-                  <span className={`${styles.noteType} ${styles[note.type]}`}>{note.type.replace('_', ' ')}</span>
-                  <span className={`${styles.notePriority} ${styles[note.priority]}`}>{note.priority}</span>
-                  <span className={`${styles.noteStatus} ${styles[note.status]}`}>{note.status.replace('_', ' ')}</span>
-                </div>
-                <h4 className={styles.noteTitle}>{note.title}</h4>
-                <p className={styles.noteDescription}>{note.description}</p>
-                {note.tags.length > 0 && (
+        <div className={styles.notesSection}>
+          <button
+            className={styles.notesToggle}
+            onClick={() => setShowNotes(!showNotes)}
+          >
+            <span>Notes ({notes.length})</span>
+            <span>{showNotes ? '−' : '+'}</span>
+          </button>
+
+          {showNotes && (
+            <div className={styles.notesList}>
+              {notes.map((note) => (
+                <div key={note._id} className={styles.noteCard}>
                   <div className={styles.noteTags}>
-                    {note.tags.map((tag, i) => (
-                      <span key={i} className={styles.noteTag}>{tag}</span>
-                    ))}
+                    <span className={`${styles.noteType} ${styles[note.type]}`}>{note.type.replace('_', ' ')}</span>
+                    <span className={`${styles.notePriority} ${styles[note.priority]}`}>{note.priority}</span>
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
+                  <h4>{note.title}</h4>
+                  <p>{note.description.slice(0, 200)}{note.description.length > 200 ? '...' : ''}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
+
+      {/* Video Player */}
+      <div className={styles.playerSection}>
+        <h3>Session Recording</h3>
+        {loadingSnapshots ? (
+          <div className={styles.playerLoading}>Loading recording...</div>
+        ) : error ? (
+          <div className={styles.playerError}>{error}</div>
+        ) : snapshots && snapshots.length > 0 ? (
+          <div className={styles.playerWrapper}>
+            <div ref={playerRef} className={styles.player} />
+          </div>
+        ) : (
+          <div className={styles.noRecording}>
+            <p>No recording available</p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

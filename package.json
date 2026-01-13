@@ -11,14 +11,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
+    "@rrweb/packer": "^2.0.0-alpha.18",
     "@supabase/supabase-js": "^2.90.1",
     "convex": "^1.31.3",
+    "fflate": "^0.8.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.12.0",
     "recharts": "^3.6.0",
     "rrweb": "^2.0.0-alpha.4",
-    "rrweb-player": "^1.0.0-alpha.4",
+    "rrweb-player": "^2.0.0-alpha.18",
     "serve": "^14.2.5"
   },
   "devDependencies": {

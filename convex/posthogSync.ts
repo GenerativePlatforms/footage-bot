@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { action, internalMutation } from "./_generated/server";
+import { action, internalMutation, query } from "./_generated/server";
 import { api, internal } from "./_generated/api";
+import Anthropic from "@anthropic-ai/sdk";
 
 // PostHog API configuration - v2
 const POSTHOG_API_URL = "https://us.posthog.com/api";
@@ -40,15 +41,27 @@ interface PostHogRecordingsResponse {
 export const fetchRecordings = action({
   args: {
     limit: v.optional(v.number()),
+    dateFrom: v.optional(v.string()), // ISO date string e.g. "2026-01-12"
+    personId: v.optional(v.string()), // Filter by person/user email
   },
-  handler: async (ctx, { limit = 20 }) => {
+  handler: async (ctx, { limit = 20, dateFrom, personId }) => {
     const apiKey = process.env.POSTHOG_API_KEY;
     if (!apiKey) {
       throw new Error("POSTHOG_API_KEY not configured");
     }
 
+    // Build query params
+    const params = new URLSearchParams();
+    params.set("limit", String(limit));
+    if (dateFrom) {
+      params.set("date_from", dateFrom);
+    }
+    if (personId) {
+      params.set("person_uuid", personId);
+    }
+
     // Fetch session recordings
-    const recordingsUrl = `${POSTHOG_API_URL}/projects/${POSTHOG_PROJECT_ID}/session_recordings/?limit=${limit}`;
+    const recordingsUrl = `${POSTHOG_API_URL}/projects/${POSTHOG_PROJECT_ID}/session_recordings/?${params.toString()}`;
     console.log("Fetching from:", recordingsUrl);
 
     const recordingsResponse = await fetch(recordingsUrl, {
@@ -206,72 +219,75 @@ export const fetchSnapshots = action({
       const blobSources = data.sources.filter((s: any) => s.source === 'blob');
 
       if (blobV2Sources.length > 0) {
-        // Get min and max blob keys for range request
-        const blobKeys = blobV2Sources.map((s: any) => parseInt(s.blob_key, 10));
-        const minKey = Math.min(...blobKeys);
-        const maxKey = Math.max(...blobKeys);
+        // Get all blob keys and sort them
+        const blobKeys = blobV2Sources.map((s: any) => parseInt(s.blob_key, 10)).sort((a: number, b: number) => a - b);
 
-        const blobUrl = `${POSTHOG_API_URL}/projects/${POSTHOG_PROJECT_ID}/session_recordings/${posthogId}/snapshots?source=blob_v2&start_blob_key=${minKey}&end_blob_key=${maxKey}`;
+        // PostHog limits to 20 blob keys per request, so we need to chunk
+        const CHUNK_SIZE = 20;
+        for (let i = 0; i < blobKeys.length; i += CHUNK_SIZE) {
+          const chunkKeys = blobKeys.slice(i, i + CHUNK_SIZE);
+          const minKey = chunkKeys[0];
+          const maxKey = chunkKeys[chunkKeys.length - 1];
 
-        try {
-          const blobResponse = await fetch(blobUrl, {
-            method: "GET",
-            headers: {
-              "Authorization": `Bearer ${apiKey}`,
-              "Content-Length": "0",
-            },
-          });
+          const blobUrl = `${POSTHOG_API_URL}/projects/${POSTHOG_PROJECT_ID}/session_recordings/${posthogId}/snapshots?source=blob_v2&start_blob_key=${minKey}&end_blob_key=${maxKey}`;
 
-          if (blobResponse.ok) {
-            const text = await blobResponse.text();
+          try {
+            const blobResponse = await fetch(blobUrl, {
+              method: "GET",
+              headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Length": "0",
+              },
+            });
 
-            // Parse NDJSON format (newline-delimited JSON)
-            const lines = text.trim().split('\n');
+            if (blobResponse.ok) {
+              const text = await blobResponse.text();
 
-            for (const line of lines) {
-              if (line.trim()) {
-                try {
-                  const parsed = JSON.parse(line);
+              // Parse NDJSON format (newline-delimited JSON)
+              const lines = text.trim().split('\n');
 
-                  // PostHog blob_v2 format: [window_id, event_object]
-                  if (Array.isArray(parsed) && parsed.length === 2 && typeof parsed[0] === 'string') {
-                    const event = parsed[1];
-                    // Only include valid rrweb events:
-                    // - type must be a number (0-6 for rrweb event types)
-                    // - data must be an object (not a compressed string)
-                    // PostHog sometimes sends compressed events where data is binary string
-                    const isValidEvent = typeof event === 'object' &&
-                        typeof event.type === 'number' &&
-                        event.type >= 0 && event.type <= 6 &&
-                        typeof event.timestamp === 'number' &&
-                        (event.data === undefined || typeof event.data === 'object');
+              for (const line of lines) {
+                if (line.trim()) {
+                  try {
+                    const parsed = JSON.parse(line);
 
-                    if (isValidEvent) {
-                      allEvents.push(event);
-                    }
-                  }
-                  // Alternative format: {window_id, data: [...events]}
-                  else if (parsed.window_id && parsed.data && Array.isArray(parsed.data)) {
-                    for (const event of parsed.data) {
-                      if (typeof event === 'object' && event.type !== undefined) {
+                    // PostHog blob_v2 format: [window_id, event_object]
+                    if (Array.isArray(parsed) && parsed.length === 2 && typeof parsed[0] === 'string') {
+                      const event = parsed[1];
+                      // Include all events with valid type and timestamp
+                      // rrweb event types: 0-6 (DomContentLoaded, Load, FullSnapshot, IncrementalSnapshot, Meta, Custom, Plugin)
+                      // Note: data can be compressed string - rrweb-player handles decompression
+                      const isValidEvent = typeof event === 'object' &&
+                          typeof event.type === 'number' &&
+                          typeof event.timestamp === 'number';
+
+                      if (isValidEvent) {
                         allEvents.push(event);
                       }
                     }
+                    // Alternative format: {window_id, data: [...events]}
+                    else if (parsed.window_id && parsed.data && Array.isArray(parsed.data)) {
+                      for (const event of parsed.data) {
+                        if (typeof event === 'object' && event.type !== undefined) {
+                          allEvents.push(event);
+                        }
+                      }
+                    }
+                    // Single rrweb event
+                    else if (typeof parsed === 'object' && parsed.type !== undefined) {
+                      allEvents.push(parsed);
+                    }
+                  } catch (parseErr) {
+                    // Not valid JSON line, skip
                   }
-                  // Single rrweb event
-                  else if (typeof parsed === 'object' && parsed.type !== undefined) {
-                    allEvents.push(parsed);
-                  }
-                } catch (parseErr) {
-                  // Not valid JSON line, skip
                 }
               }
+            } else {
+              console.error("Blob_v2 fetch failed:", blobResponse.status, await blobResponse.text());
             }
-          } else {
-            console.error("Blob_v2 fetch failed:", blobResponse.status, await blobResponse.text());
+          } catch (e) {
+            console.error('Failed to fetch blob_v2 chunk:', e);
           }
-        } catch (e) {
-          console.error('Failed to fetch blob_v2:', e);
         }
       }
 
@@ -331,5 +347,245 @@ export const fetchSnapshots = action({
     }
 
     return [];
+  },
+});
+
+// Query to get recent sessions sorted by startTime
+export const listRecentSessions = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit = 10 }) => {
+    return await ctx.db
+      .query("sessions")
+      .withIndex("by_startTime")
+      .order("desc")
+      .take(limit);
+  },
+});
+
+// Extract meaningful events from rrweb snapshots for AI analysis
+function extractEventsForAnalysis(snapshots: any[]): string {
+  const events: string[] = [];
+  let lastUrl = "";
+
+  for (const event of snapshots) {
+    if (!event || typeof event !== "object") continue;
+
+    // Type 4 = Meta event (contains URL)
+    if (event.type === 4 && event.data?.href) {
+      const url = event.data.href;
+      if (url !== lastUrl) {
+        events.push(`[Navigation] Visited: ${url}`);
+        lastUrl = url;
+      }
+    }
+
+    // Type 3 = IncrementalSnapshot (contains user interactions)
+    if (event.type === 3 && event.data) {
+      const source = event.data.source;
+
+      // source 1 = MouseMove, 2 = MouseInteraction, 5 = Input
+      if (source === 2 && event.data.type !== undefined) {
+        // Mouse interactions: 0=mouseup, 1=mousedown, 2=click, 3=contextmenu, 4=dblclick
+        const interactionTypes: Record<number, string> = {
+          2: "Click",
+          4: "Double-click",
+          3: "Right-click",
+        };
+        const interactionType = interactionTypes[event.data.type];
+        if (interactionType) {
+          events.push(`[${interactionType}] at position (${event.data.x}, ${event.data.y})`);
+        }
+      }
+
+      if (source === 5 && event.data.text !== undefined) {
+        // Input events - don't log actual text for privacy, just note input happened
+        events.push(`[Input] User typed in a form field`);
+      }
+    }
+
+    // Type 6 = Plugin event (may contain console logs)
+    if (event.type === 6 && event.data?.plugin === "rrweb/console@1") {
+      const payload = event.data.payload;
+      if (payload?.level && payload?.payload) {
+        const level = payload.level.toUpperCase();
+        if (level === "ERROR" || level === "WARN") {
+          events.push(`[Console ${level}] ${String(payload.payload).slice(0, 200)}`);
+        }
+      }
+    }
+  }
+
+  // Limit to 500 events to avoid token limits
+  return events.slice(0, 500).join("\n");
+}
+
+// Analyze a single session with AI
+export const analyzeSession = action({
+  args: {
+    posthogId: v.string(),
+  },
+  handler: async (ctx, { posthogId }) => {
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    if (!anthropicKey) {
+      throw new Error("ANTHROPIC_API_KEY not configured");
+    }
+
+    // Get session from database
+    const session = await ctx.runQuery(api.sessions.getByPosthogId, { posthogId });
+    if (!session) {
+      throw new Error(`Session not found: ${posthogId}`);
+    }
+
+    // Skip if already analyzed
+    if (session.summary && session.status === "summarized") {
+      return { status: "already_analyzed", posthogId };
+    }
+
+    // Fetch snapshots
+    const snapshots = await ctx.runAction(api.posthogSync.fetchSnapshots, { posthogId });
+    if (!snapshots || snapshots.length === 0) {
+      return { status: "no_snapshots", posthogId };
+    }
+
+    // Extract events for analysis
+    const eventLog = extractEventsForAnalysis(snapshots);
+
+    // Build context about the session
+    const sessionContext = `
+Session Details:
+- User: ${session.userId || "Anonymous"}
+- Duration: ${Math.round(session.duration / 60)} minutes
+- Start Time: ${new Date(session.startTime).toISOString()}
+- Pages Viewed: ${session.pageViews?.join(", ") || "Unknown"}
+- Error Count: ${session.errorCount || 0}
+- Device: ${session.device?.type || "Unknown"} / ${session.device?.browser || "Unknown"} / ${session.device?.os || "Unknown"}
+
+User Activity Log:
+${eventLog || "No detailed activity captured"}
+`;
+
+    // Call Claude API for analysis
+    const client = new Anthropic({ apiKey: anthropicKey });
+
+    const response = await client.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 2000,
+      messages: [
+        {
+          role: "user",
+          content: `You are analyzing a user session recording from a video generation app (footage.com). Based on the session data below, provide a structured analysis.
+
+${sessionContext}
+
+Provide your analysis in the following JSON format:
+{
+  "overview": "Brief 1-2 sentence summary of what the user did",
+  "userIntent": "What the user was trying to accomplish",
+  "painPoints": ["List of friction points or issues encountered"],
+  "successfulFlows": ["List of successful actions completed"],
+  "recommendations": ["UX/product improvement suggestions"],
+  "sentiment": "positive|neutral|negative|frustrated",
+  "engagementScore": 1-10,
+  "noteTitle": "Short title for this session analysis",
+  "noteType": "finding|recommendation|bug|ux_issue|feature_request|pattern",
+  "notePriority": "low|medium|high|critical"
+}
+
+Return ONLY valid JSON, no other text.`
+        }
+      ]
+    });
+
+    // Parse the response
+    const content = response.content[0];
+    if (content.type !== "text") {
+      throw new Error("Unexpected response type from Claude");
+    }
+
+    let analysis;
+    try {
+      analysis = JSON.parse(content.text);
+    } catch (e) {
+      // Try to extract JSON from the response
+      const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        analysis = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error(`Failed to parse analysis: ${content.text.slice(0, 200)}`);
+      }
+    }
+
+    // Update the session with summary
+    await ctx.runMutation(api.sessions.update, {
+      id: session._id,
+      summary: {
+        overview: analysis.overview || "No overview available",
+        userIntent: analysis.userIntent || "Unknown",
+        painPoints: analysis.painPoints || [],
+        successfulFlows: analysis.successfulFlows || [],
+        recommendations: analysis.recommendations || [],
+        sentiment: analysis.sentiment || "neutral",
+        engagementScore: analysis.engagementScore || 5,
+      },
+      status: "summarized",
+    });
+
+    // Create a note for this session
+    await ctx.runMutation(api.notes.create, {
+      sessionId: posthogId,
+      type: analysis.noteType || "finding",
+      priority: analysis.notePriority || "medium",
+      title: analysis.noteTitle || `Session Analysis: ${session.userId || "Anonymous"}`,
+      description: `${analysis.overview}\n\nUser Intent: ${analysis.userIntent}\n\nPain Points:\n${(analysis.painPoints || []).map((p: string) => `- ${p}`).join("\n")}\n\nRecommendations:\n${(analysis.recommendations || []).map((r: string) => `- ${r}`).join("\n")}`,
+      affectedSessions: 1,
+      status: "new",
+      tags: [session.userId || "anonymous", analysis.sentiment || "neutral"],
+    });
+
+    return {
+      status: "analyzed",
+      posthogId,
+      overview: analysis.overview,
+      sentiment: analysis.sentiment,
+      engagementScore: analysis.engagementScore,
+    };
+  },
+});
+
+// Analyze the most recent sessions
+export const analyzeRecentSessions = action({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { limit = 10 }): Promise<{
+    total: number;
+    results: Array<{ status: string; posthogId: string; overview?: string; sentiment?: string; engagementScore?: number; error?: string }>;
+  }> => {
+    // Get recent sessions using direct query instead of api reference to avoid circular type
+    const sessions = await ctx.runQuery(api.posthogSync.listRecentSessions, { limit });
+
+    const results: Array<{ status: string; posthogId: string; overview?: string; sentiment?: string; engagementScore?: number; error?: string }> = [];
+    for (const session of sessions) {
+      try {
+        // Call analyzeSession directly to avoid circular reference
+        const result = await ctx.runAction(api.posthogSync.analyzeSession, {
+          posthogId: session.posthogId
+        }) as { status: string; posthogId: string; overview?: string; sentiment?: string; engagementScore?: number };
+        results.push(result);
+        console.log(`Analyzed session ${session.posthogId}:`, result.status);
+      } catch (e) {
+        console.error(`Failed to analyze session ${session.posthogId}:`, e);
+        results.push({
+          status: "error",
+          posthogId: session.posthogId,
+          error: String(e)
+        });
+      }
+    }
+
+    return {
+      total: sessions.length,
+      results,
+    };
   },
 });
