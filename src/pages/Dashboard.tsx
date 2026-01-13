@@ -105,6 +105,16 @@ export default function Dashboard() {
           value={String(userAnalytics?.newAccounts24h || 0)}
           subtitle="Supabase"
         />
+        <MetricCard
+          title="Signup → Paid Conversion"
+          value={userAnalytics?.newAccounts24h ? `${(((metrics?.newCustomers24h || 0) / userAnalytics.newAccounts24h) * 100).toFixed(1)}%` : '0%'}
+          subtitle={`${metrics?.newCustomers24h || 0} paid / ${userAnalytics?.newAccounts24h || 0} signups`}
+        />
+        <MetricCard
+          title="Total Subscribers"
+          value={String(metrics?.subscribers || 0)}
+          subtitle="ChartMogul"
+        />
       </div>
 
       {/* Charts */}
@@ -149,7 +159,7 @@ export default function Dashboard() {
         {/* Signups Per Day */}
         {userAnalytics?.signupsPerDay && userAnalytics.signupsPerDay.length > 0 && (
           <div className={styles.chartCard}>
-            <h3>Signups Per Day</h3>
+            <h3>New Free Signups Per Day</h3>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={userAnalytics.signupsPerDay}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e0dcc7" />
@@ -164,43 +174,50 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Referral Breakdown */}
+        {/* Referral Breakdown - Horizontal Bar */}
         {userAnalytics?.referralBreakdown && userAnalytics.referralBreakdown.length > 0 && (
           <div className={styles.chartCard}>
-            <h3>Referral Sources</h3>
+            <h3>New Accounts Referrals (Last 100)</h3>
             <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={userAnalytics.referralBreakdown.map(r => ({ ...r, name: r.name, count: r.count }))}
-                  dataKey="count"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  label={({ name, percent }) => `${name} (${((percent ?? 0) * 100).toFixed(0)}%)`}
-                >
-                  {userAnalytics.referralBreakdown.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e0dcc7', color: '#657b83' }} />
-              </PieChart>
+              <BarChart data={userAnalytics.referralBreakdown} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0dcc7" />
+                <XAxis type="number" stroke="#93a1a1" fontSize={11} />
+                <YAxis type="category" dataKey="name" stroke="#93a1a1" fontSize={11} width={100} />
+                <Tooltip
+                  contentStyle={{ background: '#fff', border: '1px solid #e0dcc7', color: '#657b83' }}
+                  formatter={(value, _, props) => [`${value} (${props.payload.percentage})`, 'Count']}
+                />
+                <Bar dataKey="count" fill="#268bd2" />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         )}
 
-        {/* Model Breakdown */}
+        {/* Model Breakdown - Donut Chart */}
         {userAnalytics?.modelBreakdown && userAnalytics.modelBreakdown.length > 0 && (
           <div className={styles.chartCard}>
-            <h3>Model Usage</h3>
+            <h3>Video Model Distribution</h3>
             <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={userAnalytics.modelBreakdown} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0dcc7" />
-                <XAxis type="number" stroke="#93a1a1" fontSize={11} />
-                <YAxis type="category" dataKey="model" stroke="#93a1a1" fontSize={11} width={100} />
-                <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e0dcc7', color: '#657b83' }} />
-                <Bar dataKey="count" fill="#b58900" />
-              </BarChart>
+              <PieChart>
+                <Pie
+                  data={userAnalytics.modelBreakdown.map(m => ({ ...m, name: m.model }))}
+                  dataKey="count"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={80}
+                  label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(1)}%`}
+                >
+                  {userAnalytics.modelBreakdown.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{ background: '#fff', border: '1px solid #e0dcc7', color: '#657b83' }}
+                  formatter={(value, _, props) => [`${value} (${props.payload.percentage})`, props.payload.name]}
+                />
+              </PieChart>
             </ResponsiveContainer>
           </div>
         )}
@@ -222,30 +239,6 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* New Subscribers Table */}
-      {metrics?.newSubscriberDetails && metrics.newSubscriberDetails.length > 0 && (
-        <div className={styles.tableSection}>
-          <h3>Recent New Subscribers</h3>
-          <div className={styles.table}>
-            <div className={styles.tableHeader}>
-              <div>Email</div>
-              <div>Plan</div>
-              <div>MRR</div>
-              <div>Source</div>
-              <div>Date</div>
-            </div>
-            {metrics.newSubscriberDetails.map((sub, i) => (
-              <div key={sub.uuid || i} className={styles.tableRow}>
-                <div>{sub.email}</div>
-                <div>{sub['plan-external-id'] || '-'}</div>
-                <div>{sub['activity-mrr'] ? formatCurrency(sub['activity-mrr'] / 100) : '-'}</div>
-                <div>{sub.source}</div>
-                <div>{new Date(sub.date).toLocaleDateString()}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

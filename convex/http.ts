@@ -146,6 +146,125 @@ http.route({
   }),
 });
 
+// Ramp API proxy
+http.route({
+  path: "/api/ramp",
+  method: "GET",
+  handler: httpAction(async () => {
+    const clientId = process.env.RAMP_CLIENT_ID;
+    const clientSecret = process.env.RAMP_CLIENT_SECRET;
+    const refreshToken = process.env.RAMP_REFRESH_TOKEN;
+
+    if (!clientId || !clientSecret || !refreshToken) {
+      return new Response(JSON.stringify({
+        error: "Ramp not configured",
+        balance: 0,
+        limit: 0
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      });
+    }
+
+    try {
+      // Get access token using refresh token
+      const tokenResponse = await fetch("https://api.ramp.com/developer/v1/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
+        },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: refreshToken,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        throw new Error("Failed to get Ramp access token");
+      }
+
+      const tokenData = await tokenResponse.json();
+      const accessToken = tokenData.access_token;
+
+      // Get spend limits/balance
+      const limitsResponse = await fetch("https://api.ramp.com/developer/v1/business/balance", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!limitsResponse.ok) {
+        // Try alternative endpoint for card balance
+        const cardsResponse = await fetch("https://api.ramp.com/developer/v1/cards", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (cardsResponse.ok) {
+          const cardsData = await cardsResponse.json();
+          // Sum up card limits and balances
+          let totalLimit = 0;
+          let totalSpent = 0;
+
+          if (cardsData.data && Array.isArray(cardsData.data)) {
+            for (const card of cardsData.data) {
+              totalLimit += card.spending_restrictions?.amount || 0;
+              totalSpent += card.current_spend_amount || 0;
+            }
+          }
+
+          return new Response(JSON.stringify({
+            balance: (totalLimit - totalSpent) / 100,
+            limit: totalLimit / 100,
+            spent: totalSpent / 100,
+          }), {
+            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          });
+        }
+
+        throw new Error("Failed to get Ramp balance");
+      }
+
+      const balanceData = await limitsResponse.json();
+
+      return new Response(JSON.stringify({
+        balance: (balanceData.balance || 0) / 100,
+        limit: (balanceData.limit || 0) / 100,
+        spent: (balanceData.spent || 0) / 100,
+      }), {
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      });
+    } catch (error) {
+      console.error("Ramp API error:", error);
+      return new Response(JSON.stringify({
+        error: "Failed to fetch Ramp data",
+        balance: 0,
+        limit: 0,
+      }), {
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      });
+    }
+  }),
+});
+
+http.route({
+  path: "/api/ramp",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return new Response(null, {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
+    });
+  }),
+});
+
 // CORS preflight
 http.route({
   path: "/api/chartmogul",
