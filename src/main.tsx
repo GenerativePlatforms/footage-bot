@@ -4,6 +4,7 @@ import { ConvexProvider, ConvexReactClient } from 'convex/react'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import './index.css'
+import 'rrweb-player/dist/style.css'
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL)
 

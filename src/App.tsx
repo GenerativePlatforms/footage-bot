@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useState, createContext, useContext } from 'react'
 import Dashboard from './pages/Dashboard'
 import Sessions from './pages/Sessions'
+import SessionReplay from './pages/SessionReplay'
 import Serps from './pages/Serps'
 import Login from './pages/Login'
 import Layout from './components/Layout'
@@ -67,6 +68,7 @@ export default function App() {
         >
           <Route index element={<Dashboard />} />
           <Route path="sessions" element={<Sessions />} />
+          <Route path="sessions/:sessionId" element={<SessionReplay />} />
           <Route path="serps" element={<Serps />} />
         </Route>
       </Routes>

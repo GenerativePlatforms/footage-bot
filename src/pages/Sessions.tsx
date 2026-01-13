@@ -1,4 +1,5 @@
 import { useQuery } from 'convex/react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../../convex/_generated/api'
 import styles from './Sessions.module.css'
 
@@ -24,6 +25,7 @@ function getSentimentColor(sentiment: string | undefined): string {
 }
 
 export default function Sessions() {
+  const navigate = useNavigate()
   const recordings = useQuery(api.recordings.list, { limit: 50 })
 
   if (recordings === undefined) {
@@ -56,7 +58,11 @@ export default function Sessions() {
         </div>
 
         {recordings.map((recording) => (
-          <div key={recording._id} className={styles.row}>
+          <div
+            key={recording._id}
+            className={styles.row}
+            onClick={() => navigate(`/sessions/${recording.sessionId}`)}
+          >
             <div className={styles.col}>
               <span className={styles.time}>{formatTime(recording.startTime)}</span>
             </div>
