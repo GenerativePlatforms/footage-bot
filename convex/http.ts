@@ -1,5 +1,6 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
+import { api } from "./_generated/api";
 
 const http = httpRouter();
 
@@ -168,6 +169,70 @@ http.route({
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
+    });
+  }),
+});
+
+// Recordings ingest endpoint
+http.route({
+  path: "/api/recordings/ingest",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const { sessionId, events, metadata } = body;
+
+      if (!sessionId || !events) {
+        return new Response(JSON.stringify({ error: "Missing sessionId or events" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        });
+      }
+
+      // Get IP from request headers
+      const ipAddress = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+                        request.headers.get("x-real-ip") ||
+                        "unknown";
+
+      await ctx.runMutation(api.recordings.create, {
+        sessionId,
+        ipAddress,
+        events,
+        startTime: metadata?.startTime || Date.now(),
+        pageUrl: metadata?.pageUrl || "unknown",
+        userAgent: metadata?.userAgent || "unknown",
+        metadata: metadata ? {
+          screenWidth: metadata.screenWidth || 0,
+          screenHeight: metadata.screenHeight || 0,
+          deviceType: metadata.deviceType,
+          browser: metadata.browser,
+          os: metadata.os,
+        } : undefined,
+      });
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      });
+    } catch (error) {
+      console.error("Recording ingest error:", error);
+      return new Response(JSON.stringify({ error: "Failed to ingest recording" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      });
+    }
+  }),
+});
+
+http.route({
+  path: "/api/recordings/ingest",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return new Response(null, {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
       },
     });
