@@ -81,26 +81,52 @@ http.route({
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       const seventyTwoHoursAgo = new Date(now.getTime() - 72 * 60 * 60 * 1000);
 
-      // Fetch all data in parallel
-      const [accountsRes, referralsRes, videosRes, signupsRes, videosHourlyRes] = await Promise.all([
-        // New accounts in last 24h - count profiles
-        fetch(
-          `${supabaseUrl}/rest/v1/profiles?select=id&created_at=gte.${twentyFourHoursAgo.toISOString()}`,
+      // Fetch users from auth.users via Admin API (paginated)
+      let allUsers: Array<{ created_at: string; user_metadata?: { source?: string; medium?: string } }> = [];
+      let page = 1;
+      const perPage = 1000;
+      let hasMore = true;
+
+      while (hasMore) {
+        const usersRes = await fetch(
+          `${supabaseUrl}/auth/v1/admin/users?page=${page}&per_page=${perPage}`,
           { headers }
-        ),
-        // Referral breakdown - get last 100 profiles with utm data
-        fetch(
-          `${supabaseUrl}/rest/v1/profiles?select=utm_source,utm_medium&order=created_at.desc&limit=100`,
-          { headers }
-        ),
+        );
+
+        if (!usersRes.ok) {
+          console.error("Failed to fetch users:", await usersRes.text());
+          break;
+        }
+
+        const usersData = await usersRes.json();
+        const pageUsers = usersData.users || [];
+
+        if (pageUsers.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        allUsers = allUsers.concat(pageUsers);
+
+        // Check if oldest user is older than 30 days or we got fewer than perPage
+        const oldestInPage = pageUsers.reduce((oldest: Date, user: { created_at: string }) => {
+          const userDate = new Date(user.created_at);
+          return userDate < oldest ? userDate : oldest;
+        }, new Date());
+
+        if (oldestInPage < thirtyDaysAgo || pageUsers.length < perPage) {
+          hasMore = false;
+        } else {
+          page++;
+          if (page > 20) hasMore = false; // Safety limit
+        }
+      }
+
+      // Fetch video data in parallel
+      const [videosRes, videosHourlyRes] = await Promise.all([
         // Model breakdown - get last 1000 videos with model info
         fetch(
           `${supabaseUrl}/rest/v1/videos?select=model&order=created_at.desc&limit=1000`,
-          { headers }
-        ),
-        // Signups per day - get profiles from last 30 days
-        fetch(
-          `${supabaseUrl}/rest/v1/profiles?select=created_at&created_at=gte.${thirtyDaysAgo.toISOString()}&order=created_at.asc`,
           { headers }
         ),
         // Videos per hour - get videos from last 72 hours
@@ -110,28 +136,44 @@ http.route({
         ),
       ]);
 
-      // Process new accounts count
-      const contentRange = accountsRes.headers.get("content-range");
-      const newAccounts24h = contentRange ? parseInt(contentRange.split("/")[1] || "0") : 0;
+      // Process new accounts in last 24h
+      const newAccountsList = allUsers.filter(u => new Date(u.created_at) > twentyFourHoursAgo);
+      const newAccounts24h = newAccountsList.length;
 
-      // Process referral breakdown
+      // Process referral breakdown from last 100 signups
+      const last100Signups = allUsers
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 100);
+
       let referralBreakdown: { name: string; count: number; percentage: string }[] = [];
-      if (referralsRes.ok) {
-        const profiles = await referralsRes.json();
-        const refCounts: Record<string, number> = {};
-        for (const p of profiles) {
-          const key = `${p.utm_source || 'direct'} / ${p.utm_medium || 'none'}`;
-          refCounts[key] = (refCounts[key] || 0) + 1;
-        }
-        const total = profiles.length;
-        referralBreakdown = Object.entries(refCounts)
-          .map(([name, count]) => ({
-            name,
-            count,
-            percentage: `${((count / total) * 100).toFixed(1)}%`,
-          }))
-          .sort((a, b) => b.count - a.count);
+      const refCounts: Record<string, number> = {};
+      for (const user of last100Signups) {
+        const source = user.user_metadata?.source || 'direct';
+        const medium = user.user_metadata?.medium || 'none';
+        const key = `${source} / ${medium}`;
+        refCounts[key] = (refCounts[key] || 0) + 1;
       }
+      const total = last100Signups.length;
+      referralBreakdown = Object.entries(refCounts)
+        .map(([name, count]) => ({
+          name,
+          count,
+          percentage: `${((count / total) * 100).toFixed(1)}%`,
+        }))
+        .sort((a, b) => b.count - a.count);
+
+      // Process signups per day from last 30 days
+      const signupsPerDayCounts: Record<string, number> = {};
+      for (const user of allUsers) {
+        const date = new Date(user.created_at);
+        if (date >= thirtyDaysAgo) {
+          const dayKey = date.toISOString().split('T')[0];
+          signupsPerDayCounts[dayKey] = (signupsPerDayCounts[dayKey] || 0) + 1;
+        }
+      }
+      const signupsPerDay = Object.entries(signupsPerDayCounts)
+        .map(([date, count]) => ({ date, count }))
+        .sort((a, b) => a.date.localeCompare(b.date));
 
       // Process model breakdown
       let modelBreakdown: { model: string; count: number; percentage: string }[] = [];
@@ -166,20 +208,6 @@ http.route({
             percentage: `${((count / total) * 100).toFixed(1)}%`,
           }))
           .sort((a, b) => b.count - a.count);
-      }
-
-      // Process signups per day
-      let signupsPerDay: { date: string; count: number }[] = [];
-      if (signupsRes.ok) {
-        const profiles = await signupsRes.json();
-        const dayCounts: Record<string, number> = {};
-        for (const p of profiles) {
-          const date = new Date(p.created_at).toISOString().split('T')[0];
-          dayCounts[date] = (dayCounts[date] || 0) + 1;
-        }
-        signupsPerDay = Object.entries(dayCounts)
-          .map(([date, count]) => ({ date, count }))
-          .sort((a, b) => a.date.localeCompare(b.date));
       }
 
       // Process videos per hour
