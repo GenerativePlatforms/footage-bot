@@ -2,7 +2,110 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useAction } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { useEffect, useRef, useState } from 'react'
+import { decompressSync } from 'fflate'
 import styles from './SessionReplay.module.css'
+
+// Decompress event data if it's a compressed string
+function decompressEventData(event: any): any {
+  if (!event || typeof event !== 'object') return event
+
+  // If data is a compressed string (gzip starts with char code 31)
+  if (typeof event.data === 'string' && event.data.charCodeAt(0) === 31) {
+    try {
+      // Convert string to Uint8Array
+      const compressed = new Uint8Array(event.data.length)
+      for (let i = 0; i < event.data.length; i++) {
+        compressed[i] = event.data.charCodeAt(i)
+      }
+      // Decompress
+      const decompressed = decompressSync(compressed)
+      // Convert back to string and parse JSON
+      const decoder = new TextDecoder()
+      const jsonStr = decoder.decode(decompressed)
+      const parsedData = JSON.parse(jsonStr)
+      return { ...event, data: parsedData }
+    } catch (err) {
+      console.error('Failed to decompress event data:', err)
+      return event
+    }
+  }
+  return event
+}
+
+// Recursively clean a DOM node tree to remove undefined/malformed nodes
+function cleanNode(node: any): any {
+  // Skip undefined/null nodes
+  if (node === undefined || node === null) return null
+  if (typeof node !== 'object') return null
+
+  // Ensure node has required type and id properties for rrweb
+  if (typeof node.type !== 'number') return null
+  if (typeof node.id !== 'number') return null
+
+  const cleaned: any = { ...node }
+
+  // Clean childNodes array if present - filter out undefined/null BEFORE mapping
+  if (Array.isArray(node.childNodes)) {
+    cleaned.childNodes = node.childNodes
+      .filter((child: any) => child !== undefined && child !== null)
+      .map((child: any) => cleanNode(child))
+      .filter((child: any) => child !== null)
+  }
+
+  // Clean children array if present (some formats use this)
+  if (Array.isArray(node.children)) {
+    cleaned.children = node.children
+      .filter((child: any) => child !== undefined && child !== null)
+      .map((child: any) => cleanNode(child))
+      .filter((child: any) => child !== null)
+  }
+
+  return cleaned
+}
+
+// Sanitize rrweb events to fix malformed data
+function sanitizeEvents(events: any[]): any[] {
+  return events.map((event) => {
+    if (!event || typeof event !== 'object') return null
+    if (typeof event.type !== 'number' || typeof event.timestamp !== 'number') return null
+
+    // First, decompress the event data if needed
+    const decompressedEvent = decompressEventData(event)
+
+    // For FullSnapshot events (type 2), clean the node tree
+    if (decompressedEvent.type === 2 && decompressedEvent.data && decompressedEvent.data.node) {
+      const cleanedNode = cleanNode(decompressedEvent.data.node)
+      if (!cleanedNode) return null
+      return {
+        ...decompressedEvent,
+        data: {
+          ...decompressedEvent.data,
+          node: cleanedNode,
+        },
+      }
+    }
+
+    // For IncrementalSnapshot events (type 3), clean mutation data if present
+    if (decompressedEvent.type === 3 && decompressedEvent.data) {
+      const cleanedData = { ...decompressedEvent.data }
+
+      // Clean adds array (new nodes added to DOM)
+      if (Array.isArray(cleanedData.adds)) {
+        cleanedData.adds = cleanedData.adds
+          .filter((add: any) => add && add.node)
+          .map((add: any) => ({
+            ...add,
+            node: cleanNode(add.node) || add.node,
+          }))
+          .filter((add: any) => add.node)
+      }
+
+      return { ...decompressedEvent, data: cleanedData }
+    }
+
+    return decompressedEvent
+  }).filter((event: any) => event !== null)
+}
 
 type Sentiment = 'positive' | 'neutral' | 'negative' | 'frustrated'
 
@@ -78,22 +181,19 @@ export default function SessionReplay() {
       playerRef.current!.innerHTML = ''
 
       try {
-        // Debug: log event info
-        console.log('Total events:', snapshots.length)
+        // Check for required FullSnapshot event
         const hasFullSnapshot = snapshots.some((e: any) => e && e.type === 2)
-        console.log('Has FullSnapshot:', hasFullSnapshot)
-
         if (!hasFullSnapshot) {
-          console.error('No FullSnapshot event found - player cannot render')
           setError('Recording data incomplete - missing full snapshot')
           return
         }
 
-        // Filter out any malformed events (must have type and timestamp)
-        const validEvents = snapshots.filter((e: any) =>
-          e && typeof e.type === 'number' && typeof e.timestamp === 'number'
-        )
-        console.log('Valid events:', validEvents.length)
+        // Sanitize events: decompress and clean malformed DOM nodes
+        const validEvents = sanitizeEvents(snapshots)
+        if (validEvents.length === 0) {
+          setError('No valid events in recording')
+          return
+        }
 
         const player = new rrwebPlayer({
           target: playerRef.current!,
