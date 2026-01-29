@@ -1,9 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useState, createContext, useContext } from 'react'
 import Dashboard from './pages/Dashboard'
-import Sessions from './pages/Sessions'
-import SessionReplay from './pages/SessionReplay'
-import Serps from './pages/Serps'
 import CustomerSupport from './pages/CustomerSupport'
 import Moderator from './pages/Moderator'
 import AdCampaigns from './pages/AdCampaigns'
@@ -78,10 +75,8 @@ export default function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Sessions />} />
-          <Route path="sessions/:sessionId" element={<SessionReplay />} />
+          <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="serps" element={<Serps />} />
           <Route path="support" element={<CustomerSupport />} />
           <Route path="moderator" element={<Moderator />} />
           <Route path="campaigns" element={<AdCampaigns />} />

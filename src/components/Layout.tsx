@@ -4,9 +4,7 @@ import { useAuth } from '../App'
 import styles from './Layout.module.css'
 
 const navItems = [
-  { path: '/', label: 'Sessions', icon: '👤' },
   { path: '/dashboard', label: 'Metrics', icon: '📊' },
-  { path: '/serps', label: 'SERPs', icon: '🔍' },
   { path: '/support', label: 'Customer Support', icon: '🎧' },
   { path: '/moderator', label: 'Moderator', icon: '🛡️' },
   { path: '/campaigns', label: 'Ad Campaigns', icon: '📢' },
